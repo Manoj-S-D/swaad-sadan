@@ -145,7 +145,10 @@ class UnifiedCursor:
                 'contactinfo': 'contactInfo',
                 'deliverycharges': 'deliveryCharges',
                 'parcelcharge': 'parcelCharge',
-                'trustbadges': 'trustBadges'
+                'trustbadges': 'trustBadges',
+                'adminreply': 'adminReply',
+                'repliedat': 'repliedAt',
+                'username': 'userName'
             }
             
             for key, value in row.items():
