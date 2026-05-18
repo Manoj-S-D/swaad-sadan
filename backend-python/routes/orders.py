@@ -27,6 +27,8 @@ def create_order():
         discount = 0
         coupon_discount = 0
         points_discount = 0
+        coupon = None  # Initialize coupon to None
+        coupon_id = None  # Store coupon ID separately
         
         # Handle delivery charge - only for delivery orders
         if data['orderType'] == 'delivery':
@@ -42,9 +44,13 @@ def create_order():
             db = Database.get_db()
             cursor = db.cursor()
             cursor.execute('SELECT * FROM coupons WHERE code = ? AND isActive = TRUE', (data['couponCode'],))
-            coupon = cursor.fetchone()
+            coupon_row = cursor.fetchone()
             
-            if coupon:
+            if coupon_row:
+                # Convert to dict to persist after db.close()
+                coupon = dict(coupon_row)
+                coupon_id = coupon['id']
+                
                 # Calculate coupon discount
                 if coupon['type'] == 'flat':
                     coupon_discount = coupon['value']
@@ -129,10 +135,13 @@ def create_order():
         order_id = Order.create(order_data)
         
         # Record coupon usage if coupon was used
-        if data.get('couponCode') and coupon_discount > 0 and coupon:
+        if coupon_id and coupon_discount > 0:
             from routes.coupons import record_coupon_usage
-            record_coupon_usage(coupon['id'], user_id, order_id, coupon_discount)
-            print(f"📊 Coupon {coupon['code']} used. Incrementing usage count.")
+            success = record_coupon_usage(coupon_id, user_id, order_id, coupon_discount)
+            if success:
+                print(f"✅ Coupon {data.get('couponCode')} usage recorded successfully. Order ID: {order_id}")
+            else:
+                print(f"❌ Failed to record coupon usage for {data.get('couponCode')}")
         
         order = Order.find_by_id(order_id)
         

@@ -223,22 +223,35 @@ def record_coupon_usage(coupon_id, user_id, order_id, discount_amount):
         db = get_db()
         cursor = db.cursor()
         
-        # Record usage
+        print(f"📝 Recording coupon usage - Coupon ID: {coupon_id}, User ID: {user_id}, Order ID: {order_id}, Discount: ₹{discount_amount}")
+        
+        # Record usage in coupon_usage table
         cursor.execute('''
             INSERT INTO coupon_usage (couponId, userId, orderId, discountAmount)
             VALUES (?, ?, ?, ?)
         ''', (coupon_id, user_id, order_id, discount_amount))
         
-        # Increment used count
+        print(f"✅ Coupon usage record inserted successfully")
+        
+        # Increment used count in coupons table
         cursor.execute('''
             UPDATE coupons SET usedCount = usedCount + 1 WHERE id = ?
         ''', (coupon_id,))
         
+        # Verify the update
+        cursor.execute('SELECT usedCount FROM coupons WHERE id = ?', (coupon_id,))
+        result = cursor.fetchone()
+        if result:
+            print(f"✅ Coupon usedCount incremented successfully. New count: {result['usedCount']}")
+        
         db.commit()
         db.close()
         
+        print(f"✅ Coupon usage recorded and committed to database")
         return True
         
     except Exception as e:
-        print(f"Error recording coupon usage: {e}")
+        print(f"❌ Error recording coupon usage: {e}")
+        import traceback
+        traceback.print_exc()
         return False
