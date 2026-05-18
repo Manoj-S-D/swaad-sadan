@@ -567,11 +567,26 @@ let selectedLat = null;
 let selectedLng = null;
 let selectedAddress = '';
 
+// Setup search input event listener (executes once on page load)
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('mapSearch');
+    if (searchInput) {
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                searchLocation();
+            }
+        });
+    }
+});
+
 function initMap(lat = 28.6139, lng = 77.2090) {
     // Initialize Leaflet map centered on Delhi by default
     if (map) {
         map.remove(); // Remove existing map if any
     }
+    
+    console.log(`Initializing map at lat: ${lat}, lng: ${lng}`);
     
     map = L.map('map').setView([lat, lng], 15);
     
@@ -598,36 +613,49 @@ function initMap(lat = 28.6139, lng = 77.2090) {
         updateLocationFromLatLng(event.latlng.lat, event.latlng.lng);
     });
     
-    // Setup search functionality with Enter key
-    const searchInput = document.getElementById('mapSearch');
-    searchInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            searchLocation();
-        }
-    });
-    
     // Get address for initial position
     updateLocationFromLatLng(lat, lng);
+    
+    // Force map to recalculate size after a short delay
+    setTimeout(() => {
+        map.invalidateSize();
+    }, 100);
 }
 
 function searchLocation() {
-    const query = document.getElementById('mapSearch').value;
-    if (!query) return;
+    const query = document.getElementById('mapSearch').value.trim();
+    if (!query) {
+        showAlert('Please enter a location to search', 'error');
+        return;
+    }
+    
+    // Check if map is initialized
+    if (!map) {
+        showAlert('Map is initializing. Please wait a moment.', 'info');
+        return;
+    }
+    
+    console.log(`Searching for: ${query}`);
+    showAlert('Searching...', 'info');
     
     // Use Nominatim (OpenStreetMap's free geocoding service)
     fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`)
         .then(response => response.json())
         .then(data => {
+            console.log('Search results:', data);
             if (data && data.length > 0) {
                 const result = data[0];
                 const lat = parseFloat(result.lat);
                 const lng = parseFloat(result.lon);
                 
+                console.log(`Found location: ${result.display_name} at ${lat}, ${lng}`);
+                
                 // Update map and marker
                 map.setView([lat, lng], 15);
                 marker.setLatLng([lat, lng]);
                 updateLocationFromLatLng(lat, lng);
+                
+                showAlert('Location found!', 'success');
             } else {
                 showAlert('Location not found. Try a different search.', 'error');
             }
@@ -642,15 +670,31 @@ function updateLocationFromLatLng(lat, lng) {
     selectedLat = lat;
     selectedLng = lng;
     
+    console.log(`Updating location: ${lat}, ${lng}`);
+    
+    // Show loading state
+    document.getElementById('mapAddress').innerHTML = `
+        <strong>Getting address...</strong><br>
+        <small style="color: #666;">Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}</small>
+    `;
+    
     // Reverse geocode using Nominatim (free)
     fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
         .then(response => response.json())
         .then(data => {
+            console.log('Reverse geocode result:', data);
             if (data && data.display_name) {
                 selectedAddress = data.display_name;
                 document.getElementById('mapAddress').innerHTML = `
                     <strong>Selected Location:</strong><br>
                     ${selectedAddress}<br>
+                    <small style="color: #666;">Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}</small>
+                `;
+            } else {
+                // Fallback if no address found
+                selectedAddress = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+                document.getElementById('mapAddress').innerHTML = `
+                    <strong>Selected Location:</strong><br>
                     <small style="color: #666;">Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}</small>
                 `;
             }
@@ -661,35 +705,51 @@ function updateLocationFromLatLng(lat, lng) {
             document.getElementById('mapAddress').innerHTML = `
                 <strong>Selected Location:</strong><br>
                 <small style="color: #666;">Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}</small>
+                <br><small style="color: #999;">(Address lookup failed, using coordinates)</small>
             `;
         });
 }
 
 function openMapPicker() {
+    // Show modal first
     document.getElementById('mapModal').style.display = 'block';
     
-    // Try to use current delivery address location if available
-    const currentLat = document.getElementById('deliveryLatitude').value;
-    const currentLng = document.getElementById('deliveryLongitude').value;
-    
-    if (currentLat && currentLng) {
-        setTimeout(() => initMap(parseFloat(currentLat), parseFloat(currentLng)), 100);
-    } else {
-        // Try to get user's current location
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                function(position) {
-                    setTimeout(() => initMap(position.coords.latitude, position.coords.longitude), 100);
-                },
-                function() {
-                    // Default to Delhi if geolocation fails
-                    setTimeout(() => initMap(), 100);
-                }
-            );
+    // Initialize map after modal is visible
+    setTimeout(() => {
+        // Try to use current delivery address location if available
+        const currentLat = document.getElementById('deliveryLatitude').value;
+        const currentLng = document.getElementById('deliveryLongitude').value;
+        
+        if (currentLat && currentLng) {
+            console.log('Using saved location:', currentLat, currentLng);
+            initMap(parseFloat(currentLat), parseFloat(currentLng));
         } else {
-            setTimeout(() => initMap(), 100);
+            // Try to get user's current location
+            if (navigator.geolocation) {
+                console.log('Requesting geolocation...');
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        console.log('Geolocation success:', position.coords);
+                        initMap(position.coords.latitude, position.coords.longitude);
+                    },
+                    function(error) {
+                        console.error('Geolocation error:', error);
+                        // Default to Bangalore (Rajajinagar area)
+                        console.log('Using default location: Bangalore');
+                        initMap(13.0005232, 77.5496166);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    }
+                );
+            } else {
+                console.log('Geolocation not supported, using default location');
+                initMap(13.0005232, 77.5496166);
+            }
         }
-    }
+    }, 200);
 }
 
 function closeMapPicker() {
@@ -697,46 +757,87 @@ function closeMapPicker() {
 }
 
 function getCurrentLocation() {
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            function(position) {
-                const lat = position.coords.latitude;
-                const lng = position.coords.longitude;
-                
-                map.setView([lat, lng], 15);
-                marker.setLatLng([lat, lng]);
-                updateLocationFromLatLng(lat, lng);
-            },
-            function() {
-                showAlert('Unable to get your location', 'error');
-            }
-        );
-    } else {
+    if (!navigator.geolocation) {
         showAlert('Geolocation is not supported by your browser', 'error');
+        return;
     }
+    
+    if (!map) {
+        showAlert('Map is not initialized yet', 'error');
+        return;
+    }
+    
+    showAlert('Getting your location...', 'info');
+    
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            
+            console.log('Current location:', lat, lng);
+            
+            map.setView([lat, lng], 15);
+            marker.setLatLng([lat, lng]);
+            updateLocationFromLatLng(lat, lng);
+            
+            showAlert('Location updated!', 'success');
+        },
+        function(error) {
+            console.error('Geolocation error:', error);
+            let errorMsg = 'Unable to get your location. ';
+            
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    errorMsg += 'Please allow location access in your browser.';
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    errorMsg += 'Location information unavailable.';
+                    break;
+                case error.TIMEOUT:
+                    errorMsg += 'Location request timed out.';
+                    break;
+                default:
+                    errorMsg += 'Unknown error occurred.';
+            }
+            
+            showAlert(errorMsg, 'error');
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        }
+    );
 }
 
 function confirmLocation() {
-    if (selectedLat && selectedLng && selectedAddress) {
+    console.log('Confirming location:', selectedLat, selectedLng, selectedAddress);
+    
+    if (selectedLat && selectedLng) {
         // Update hidden fields
         document.getElementById('deliveryLatitude').value = selectedLat;
         document.getElementById('deliveryLongitude').value = selectedLng;
         
-        // Update address field
-        document.getElementById('deliveryAddress').value = selectedAddress;
+        // Update address field - use address if available, otherwise use coordinates
+        const addressToUse = selectedAddress || `${selectedLat.toFixed(6)}, ${selectedLng.toFixed(6)}`;
+        document.getElementById('deliveryAddress').value = addressToUse;
         
         // Show confirmation
         document.getElementById('selectedLocation').innerHTML = `
-            <span style="color: green;">\u2713 Location selected on map</span>
+            <span style="color: green;">✓ Location selected on map</span>
         `;
         
         // Clear saved address selection
-        document.getElementById('savedAddresses').value = '';
+        const savedAddressSelect = document.getElementById('savedAddresses');
+        if (savedAddressSelect) {
+            savedAddressSelect.value = '';
+        }
         
         closeMapPicker();
         showAlert('Location selected successfully!', 'success');
     } else {
-        showAlert('Please select a location on the map', 'error');
+        console.error('No location selected:', { selectedLat, selectedLng, selectedAddress });
+        showAlert('Please select a location on the map first. Click on the map or drag the marker.', 'error');
     }
 }
 
