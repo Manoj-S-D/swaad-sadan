@@ -263,6 +263,8 @@ async function applyCoupon() {
     const packingCharge = 10;
     const orderTotal = subtotal + deliveryCharge + packingCharge;
     
+    console.log('Validating coupon:', code, 'Order Total:', orderTotal);
+    
     try {
         const response = await fetch('/api/coupons/validate', {
             method: 'POST',
@@ -274,6 +276,7 @@ async function applyCoupon() {
         });
         
         const data = await response.json();
+        console.log('Coupon validation response:', data);
         
         if (data.success) {
             appliedCoupon = data.coupon;

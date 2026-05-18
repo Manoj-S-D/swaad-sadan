@@ -123,7 +123,7 @@ async function loadAdminCoupons() {
                                 <td><strong>${c.code}</strong></td>
                                 <td>${c.type === 'flat' ? 'Flat' : 'Percentage'}</td>
                                 <td>${c.type === 'flat' ? '₹' + c.value : c.value + '%'}${c.maxDiscount ? ' (Max ₹' + c.maxDiscount + ')' : ''}</td>
-                                <td>₹${c.minOrderValue}</td>
+                                <td>₹${c.minOrderValue != null ? c.minOrderValue : 0}</td>
                                 <td>${new Date(c.expiryDate).toLocaleDateString()}</td>
                                 <td>${c.usedCount}/${c.usageLimit}</td>
                                 <td>
@@ -161,14 +161,23 @@ function toggleMaxDiscount() {
 async function saveCoupon(e) {
     e.preventDefault();
     const token = localStorage.getItem('token');
+    
+    // Get minOrderValue and handle empty/invalid values
+    const minOrderInput = document.getElementById('couponMinOrder').value;
+    const minOrderValue = minOrderInput && minOrderInput.trim() !== '' ? parseFloat(minOrderInput) : 0;
+    
+    // Get maxDiscount and handle empty/invalid values
+    const maxDiscountInput = document.getElementById('couponMaxDiscount').value;
+    const maxDiscount = maxDiscountInput && maxDiscountInput.trim() !== '' ? parseFloat(maxDiscountInput) : null;
+    
     const couponData = {
         code: document.getElementById('couponCode').value.toUpperCase(),
         type: document.getElementById('couponType').value,
         value: parseFloat(document.getElementById('couponValue').value),
-        maxDiscount: document.getElementById('couponMaxDiscount').value ? parseFloat(document.getElementById('couponMaxDiscount').value) : null,
-        minOrderValue: parseFloat(document.getElementById('couponMinOrder').value || 0),
-        category: document.getElementById('couponCategory').value,
-        description: document.getElementById('couponDescription').value,
+        maxDiscount: maxDiscount,
+        minOrderValue: isNaN(minOrderValue) ? 0 : minOrderValue,
+        category: document.getElementById('couponCategory').value || null,
+        description: document.getElementById('couponDescription').value || null,
         expiryDate: document.getElementById('couponExpiry').value,
         usageLimit: parseInt(document.getElementById('couponLimit').value)
     };

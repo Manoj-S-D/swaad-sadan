@@ -130,6 +130,23 @@ def create_coupon():
         
         code = data['code'].upper()
         
+        # Get and validate minOrderValue - ensure it's a number, default to 0
+        min_order_value = data.get('minOrderValue', 0)
+        if min_order_value is None or (isinstance(min_order_value, str) and min_order_value.strip() == ''):
+            min_order_value = 0
+        try:
+            min_order_value = float(min_order_value)
+        except (ValueError, TypeError):
+            min_order_value = 0
+        
+        # Get and validate maxDiscount
+        max_discount = data.get('maxDiscount')
+        if max_discount is not None:
+            try:
+                max_discount = float(max_discount)
+            except (ValueError, TypeError):
+                max_discount = None
+        
         db = get_db()
         cursor = db.cursor()
         
@@ -149,8 +166,8 @@ def create_coupon():
             code,
             data['type'],
             data['value'],
-            data.get('maxDiscount'),
-            data.get('minOrderValue', 0),
+            max_discount,
+            min_order_value,
             data.get('category'),
             data.get('description'),
             data['expiryDate'],
