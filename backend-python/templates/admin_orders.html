@@ -76,6 +76,54 @@
 .close:hover {
     color: black;
 }
+.comment-section {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid #ddd;
+}
+.customer-comment {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+.stars-display {
+    color: #FFD700;
+    font-size: 1.2rem;
+    margin: 0.5rem 0;
+}
+.reply-form {
+    margin-top: 1rem;
+}
+.reply-textarea {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    resize: vertical;
+    min-height: 60px;
+    font-family: inherit;
+}
+.btn-reply {
+    margin-top: 0.5rem;
+    padding: 0.6rem 1.2rem;
+    background: #2196F3;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+}
+.btn-reply:hover {
+    background: #1976D2;
+}
+.admin-reply-display {
+    background: #e3f2fd;
+    padding: 0.8rem;
+    border-radius: 6px;
+    margin-top: 0.8rem;
+    border-left: 3px solid #2196F3;
+}
 </style>
 
 <script>
@@ -219,11 +267,21 @@ async function viewOrderDetails(orderId) {
                     <h4 style="margin-top: 1.5rem;">Payment</h4>
                     <p><strong>Method:</strong> ${payment.method === 'cod' ? 'Cash on Delivery' : 'Online Payment'}</p>
                     <p><strong>Status:</strong> ${payment.status}</p>
+                    
+                    <div class="comment-section" id="comment-section-${order.id}">
+                        <h4>Customer Feedback</h4>
+                        <div id="comments-container-${order.id}">
+                            <p style="color: #999;">Loading comments...</p>
+                        </div>
+                    </div>
                 </div>
             `;
             
             document.getElementById('order-details-content').innerHTML = modalContent;
             document.getElementById('order-details-modal').style.display = 'block';
+            
+            // Load comments for this order
+            loadOrderComments(order.id);
         } else {
             showAlert(data.message, 'error');
         }
@@ -259,6 +317,119 @@ async function updateOrderStatus(orderId, newStatus) {
         }
     } catch (error) {
         showAlert('Failed to update order status', 'error');
+    }
+}
+
+async function loadOrderComments(orderId) {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch(`/api/orders/${orderId}/comments`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        const container = document.getElementById(`comments-container-${orderId}`);
+        
+        if (data.success && data.comments && data.comments.length > 0) {
+            const comment = data.comments[0];
+            const hasReply = comment.adminReply;
+            
+            container.innerHTML = `
+                <div class="customer-comment">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <strong>Customer Rating & Review</strong>
+                        <small style="color: #999;">${new Date(comment.createdAt).toLocaleDateString('en-IN')}</small>
+                    </div>
+                    <div class="stars-display">
+                        ${'★'.repeat(comment.rating)}${'☆'.repeat(5 - comment.rating)}
+                    </div>
+                    <p style="margin: 0.5rem 0; color: #333;">"${comment.comment}"</p>
+                    
+                    ${hasReply ? `
+                        <div class="admin-reply-display">
+                            <strong style="color: #1976D2;">Your Reply:</strong>
+                            <p style="margin: 0.5rem 0 0 0;">${comment.adminReply}</p>
+                            <small style="color: #666;">${new Date(comment.repliedAt).toLocaleDateString('en-IN')}</small>
+                        </div>
+                        <button class="btn btn-sm" onclick="editReply(${comment.id}, '${comment.adminReply.replace(/'/g, "\\'")}', ${orderId})" style="margin-top: 0.5rem;">
+                            Edit Reply
+                        </button>
+                    ` : `
+                        <div class="reply-form">
+                            <textarea 
+                                id="reply-text-${comment.id}" 
+                                class="reply-textarea" 
+                                placeholder="Write your reply to the customer..."
+                            ></textarea>
+                            <button class="btn-reply" onclick="submitReply(${comment.id}, ${orderId})">
+                                Send Reply
+                            </button>
+                        </div>
+                    `}
+                </div>
+            `;
+        } else {
+            container.innerHTML = `
+                <p style="color: #999; font-style: italic;">No customer feedback yet for this order.</p>
+            `;
+        }
+    } catch (error) {
+        console.error('Failed to load comments:', error);
+        document.getElementById(`comments-container-${orderId}`).innerHTML = `
+            <p style="color: #f44336;">Failed to load comments</p>
+        `;
+    }
+}
+
+function editReply(commentId, currentReply, orderId) {
+    const container = document.getElementById(`comments-container-${orderId}`);
+    const commentDiv = container.querySelector('.customer-comment');
+    const replySection = commentDiv.querySelector('.admin-reply-display').parentElement;
+    
+    replySection.innerHTML = `
+        <div class="reply-form">
+            <textarea 
+                id="reply-text-${commentId}" 
+                class="reply-textarea"
+            >${currentReply}</textarea>
+            <button class="btn-reply" onclick="submitReply(${commentId}, ${orderId})">
+                Update Reply
+            </button>
+            <button class="btn btn-sm" onclick="loadOrderComments(${orderId})" style="margin-left: 0.5rem;">
+                Cancel
+            </button>
+        </div>
+    `;
+}
+
+async function submitReply(commentId, orderId) {
+    const replyText = document.getElementById(`reply-text-${commentId}`).value.trim();
+    
+    if (!replyText) {
+        showAlert('Please write a reply', 'error');
+        return;
+    }
+    
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch(`/api/orders/comments/${commentId}/reply`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ reply: replyText })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            showAlert('Reply sent successfully!', 'success');
+            loadOrderComments(orderId);
+        } else {
+            showAlert(data.message || 'Failed to send reply', 'error');
+        }
+    } catch (error) {
+        console.error('Failed to submit reply:', error);
+        showAlert('Failed to send reply', 'error');
     }
 }
 </script>

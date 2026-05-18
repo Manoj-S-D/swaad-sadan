@@ -58,6 +58,62 @@
     font-weight: bold;
     color: var(--primary);
 }
+.rating-section {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid #EEE;
+}
+.stars {
+    display: flex;
+    gap: 0.5rem;
+    font-size: 2rem;
+    margin: 0.5rem 0;
+}
+.star {
+    cursor: pointer;
+    color: #ddd;
+    transition: color 0.2s;
+}
+.star.active, .star:hover {
+    color: #FFD700;
+}
+.comment-box {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-top: 1rem;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 80px;
+}
+.btn-submit-rating {
+    margin-top: 1rem;
+    padding: 0.8rem 1.5rem;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+}
+.btn-submit-rating:hover {
+    opacity: 0.9;
+}
+.existing-rating {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-top: 0.5rem;
+}
+.admin-reply {
+    background: #e3f2fd;
+    padding: 0.8rem;
+    border-radius: 6px;
+    margin-top: 0.8rem;
+    margin-left: 1rem;
+    border-left: 3px solid #2196F3;
+}
 </style>
 
 {% endblock %}
@@ -126,9 +182,20 @@ async function loadMyOrders() {
                             <span>Total Amount:</span>
                             <span>₹${pricing.total}</span>
                         </div>
+                        
+                        ${order.status === 'completed' ? `
+                            <div class="rating-section" id="rating-section-${order.id}">
+                                <div id="existing-comment-${order.id}"></div>
+                            </div>
+                        ` : ''}
                     </div>
                 `;
             }).join('');
+            
+            // Load comments for completed orders
+            data.orders.filter(o => o.status === 'completed').forEach(order => {
+                loadOrderComment(order.id);
+            });
         } else {
             container.innerHTML = `
                 <div style="text-align: center; padding: 4rem;">
@@ -142,6 +209,140 @@ async function loadMyOrders() {
     } catch (error) {
         console.error('Failed to load orders:', error);
         showAlert('Failed to load orders', 'error');
+    }
+}
+
+async function loadOrderComment(orderId) {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch(`/api/orders/${orderId}/comments`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        const container = document.getElementById(`existing-comment-${orderId}`);
+        
+        if (data.success && data.comments && data.comments.length > 0) {
+            const comment = data.comments[0];
+            container.innerHTML = `
+                <div class="existing-rating">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <strong>Your Review</strong>
+                        <button class="btn btn-sm" onclick="editRating(${orderId}, ${comment.rating}, '${comment.comment.replace(/'/g, "\\'")}')">Edit</button>
+                    </div>
+                    <div class="stars" style="pointer-events: none; margin: 0.5rem 0;">
+                        ${[1,2,3,4,5].map(i => `<span class="star ${i <= comment.rating ? 'active' : ''}">★</span>`).join('')}
+                    </div>
+                    <p style="margin: 0.5rem 0; color: #666;">${comment.comment}</p>
+                    <small style="color: #999;">${new Date(comment.createdAt).toLocaleDateString('en-IN')}</small>
+                    
+                    ${comment.adminReply ? `
+                        <div class="admin-reply">
+                            <strong style="color: #1976D2;">Admin Reply:</strong>
+                            <p style="margin: 0.5rem 0 0 0;">${comment.adminReply}</p>
+                            <small style="color: #666;">${new Date(comment.repliedAt).toLocaleDateString('en-IN')}</small>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        } else {
+            container.innerHTML = `
+                <div>
+                    <strong>Rate this order</strong>
+                    <div class="stars" id="stars-${orderId}">
+                        ${[1,2,3,4,5].map(i => `<span class="star" onclick="setRating(${orderId}, ${i})">★</span>`).join('')}
+                    </div>
+                    <textarea 
+                        id="comment-${orderId}" 
+                        class="comment-box" 
+                        placeholder="Share your experience with this order..."
+                    ></textarea>
+                    <button class="btn-submit-rating" onclick="submitRating(${orderId})">
+                        Submit Review
+                    </button>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Failed to load comment:', error);
+    }
+}
+
+let selectedRatings = {};
+
+function setRating(orderId, rating) {
+    selectedRatings[orderId] = rating;
+    const stars = document.querySelectorAll(`#stars-${orderId} .star`);
+    stars.forEach((star, index) => {
+        if (index < rating) {
+            star.classList.add('active');
+        } else {
+            star.classList.remove('active');
+        }
+    });
+}
+
+function editRating(orderId, currentRating, currentComment) {
+    const container = document.getElementById(`existing-comment-${orderId}`);
+    selectedRatings[orderId] = currentRating;
+    container.innerHTML = `
+        <div>
+            <strong>Edit your review</strong>
+            <div class="stars" id="stars-${orderId}">
+                ${[1,2,3,4,5].map(i => `
+                    <span class="star ${i <= currentRating ? 'active' : ''}" onclick="setRating(${orderId}, ${i})">★</span>
+                `).join('')}
+            </div>
+            <textarea 
+                id="comment-${orderId}" 
+                class="comment-box" 
+                placeholder="Share your experience with this order..."
+            >${currentComment}</textarea>
+            <button class="btn-submit-rating" onclick="submitRating(${orderId})">
+                Update Review
+            </button>
+            <button class="btn" onclick="loadOrderComment(${orderId})" style="margin-left: 0.5rem;">
+                Cancel
+            </button>
+        </div>
+    `;
+}
+
+async function submitRating(orderId) {
+    const rating = selectedRatings[orderId];
+    const comment = document.getElementById(`comment-${orderId}`).value.trim();
+    
+    if (!rating) {
+        showAlert('Please select a rating', 'error');
+        return;
+    }
+    
+    if (!comment) {
+        showAlert('Please write a comment', 'error');
+        return;
+    }
+    
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch(`/api/orders/${orderId}/comment`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ rating, comment })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            showAlert('Review submitted successfully!', 'success');
+            loadOrderComment(orderId);
+            delete selectedRatings[orderId];
+        } else {
+            showAlert(data.message || 'Failed to submit review', 'error');
+        }
+    } catch (error) {
+        console.error('Failed to submit rating:', error);
+        showAlert('Failed to submit review', 'error');
     }
 }
 
