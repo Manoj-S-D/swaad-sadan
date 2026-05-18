@@ -2,6 +2,14 @@
 {% block title %}Cart - SWAAD SADAN{% endblock %}
 
 {% block head %}
+<script>
+// Global callback for Google Maps API - must be defined before API loads
+window.googleMapsLoaded = false;
+function initializeGoogleMaps() {
+    window.googleMapsLoaded = true;
+    console.log('✅ Google Maps API loaded successfully');
+}
+</script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&libraries=places&callback=initializeGoogleMaps" async defer></script>
 {% endblock %}
 
@@ -561,13 +569,7 @@ let geocoder;
 let selectedLat = null;
 let selectedLng = null;
 let selectedAddress = '';
-let googleMapsLoaded = false;
-
-// Callback for when Google Maps API loads
-function initializeGoogleMaps() {
-    googleMapsLoaded = true;
-    console.log('Google Maps API loaded successfully');
-}
+// Note: window.googleMapsLoaded and initializeGoogleMaps() are defined globally in the head block
 
 function initMap(lat = 28.6139, lng = 77.2090) {
     // Initialize map centered on Delhi by default
@@ -652,8 +654,14 @@ function updateLocationFromLatLng(lat, lng) {
 
 function openMapPicker() {
     // Check if Google Maps is loaded
-    if (!googleMapsLoaded || typeof google === 'undefined') {
-        showAlert('Google Maps is loading. Please try again in a moment.', 'info');
+    if (!window.googleMapsLoaded || typeof google === 'undefined') {
+        showAlert('Google Maps is loading. Please wait a moment and try again.', 'info');
+        // Retry after 2 seconds
+        setTimeout(function() {
+            if (window.googleMapsLoaded && typeof google !== 'undefined') {
+                openMapPicker();
+            }
+        }, 2000);
         return;
     }
     
