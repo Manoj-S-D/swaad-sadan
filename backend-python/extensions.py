@@ -118,7 +118,7 @@ class UnifiedCursor:
                 'mealsperdday': 'mealsPerDay',
                 'usagelimit': 'usageLimit',
                 'usedcount': 'usedCount',
-                'mindordervalue': 'minOrderValue',
+                'minordervalue': 'minOrderValue',
                 'maxdiscount': 'maxDiscount',
                 'expirydate': 'expiryDate',
                 'priceperperson': 'pricePerPerson',
