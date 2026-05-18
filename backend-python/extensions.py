@@ -43,6 +43,17 @@ class UnifiedCursor:
             import re
             query = re.sub(r"json_extract\((\w+),\s*'\$\.(\w+)'\)", r"\1->>'\2'", query)
             
+            # Convert hardcoded boolean 0 and 1 values in INSERT VALUES
+            # Match only single digit 0 or 1 surrounded by commas/parentheses
+            if 'INSERT INTO' in query.upper():
+                # These patterns ensure we only match single digit 0 or 1
+                query = re.sub(r',\s*1\s*\)', ', TRUE)', query)  # ", 1)" at end
+                query = re.sub(r',\s*0\s*\)', ', FALSE)', query)  # ", 0)" at end  
+                query = re.sub(r'\(\s*1\s*,', '(TRUE,', query)  # "(1," at start
+                query = re.sub(r'\(\s*0\s*,', '(FALSE,', query)  # "(0," at start
+                query = re.sub(r',\s*1\s*,', ', TRUE,', query)  # ", 1," in middle
+                query = re.sub(r',\s*0\s*,', ', FALSE,', query)  # ", 0," in middle
+            
             # Convert INSERT to use RETURNING id
             if 'INSERT INTO' in query.upper() and 'RETURNING' not in query.upper():
                 query = query.rstrip(';').rstrip() + ' RETURNING id'
@@ -53,11 +64,15 @@ class UnifiedCursor:
         
         result = self.cursor.execute(query, params or ())
         
-        # Handle RETURNING id for PostgreSQL
+        # Handle RETURNING id for PostgreSQL - fetch it immediately and store
         if self.is_postgres and 'RETURNING id' in query.upper():
-            returned = self.cursor.fetchone()
-            if returned:
-                self.lastrowid = returned['id'] if isinstance(returned, dict) else returned[0]
+            try:
+                returned = self.cursor.fetchone()
+                if returned:
+                    self.lastrowid = returned['id'] if isinstance(returned, dict) else returned[0]
+            except:
+                # If no result or error, leave lastrowid as None
+                pass
         
         return result
     
@@ -151,14 +166,20 @@ class UnifiedCursor:
     
     def _convert_params_for_postgres(self, query, params):
         """Convert integer 0/1 to boolean False/True for PostgreSQL boolean columns"""
-        # Define boolean columns for each table
+        # Define ALL boolean columns for each table
         boolean_columns = {
             'users': ['isActive'],
             'products': ['isVeg', 'isHealthBox', 'isAvailable'],
             'coupons': ['isActive'],
             'subscription_plans': ['isActive'],
             'catering_packages': ['isActive'],
-            'event_packages': ['isActive']
+            'event_packages': ['isActive'],
+            'orders': [],  # No boolean columns
+            'settings': [],  # No boolean columns
+            'loyalty_points': [],  # No boolean columns
+            'coupon_usage': [],  # No boolean columns
+            'service_requests': [],  # No boolean columns
+            'request_messages': []  # No boolean columns
         }
         
         # Extract table name from query
@@ -177,6 +198,10 @@ class UnifiedCursor:
         if not table_name or table_name not in boolean_columns:
             return params
         
+        bool_cols = boolean_columns.get(table_name, [])
+        if not bool_cols:
+            return params  # No boolean columns in this table
+        
         # Extract column names from query
         if 'INSERT INTO' in query.upper():
             import re
@@ -184,26 +209,29 @@ class UnifiedCursor:
             match = re.search(r'\(([^)]+)\)\s*VALUES', query, re.IGNORECASE)
             if match:
                 columns = [col.strip() for col in match.group(1).split(',')]
-                bool_cols = boolean_columns.get(table_name, [])
                 
                 # Convert params to list if it's tuple
                 params_list = list(params)
                 for idx, col in enumerate(columns):
                     if col in bool_cols and idx < len(params_list):
                         val = params_list[idx]
-                        if val in (0, 1):
-                            params_list[idx] = bool(val)
+                        # Convert 0/1 to False/True
+                        if val == 0:
+                            params_list[idx] = False
+                        elif val == 1:
+                            params_list[idx] = True
                 return tuple(params_list)
         
         elif 'UPDATE' in query.upper():
-            # For UPDATE queries, we need more sophisticated parsing
-            # For now, convert any 0/1 that might be a boolean
+            # For UPDATE queries - convert all 0/1 integers to booleans
+            # This is a heuristic since we can't easily parse UPDATE SET clauses
             params_list = list(params)
             for idx, val in enumerate(params_list):
-                # Simple heuristic: if it's 0 or 1, convert to bool
-                # This works because we're only updating boolean-heavy tables
-                if val in (0, 1) and isinstance(val, int):
-                    params_list[idx] = bool(val)
+                # Only convert if it's exactly 0 or 1
+                if val == 0:
+                    params_list[idx] = False
+                elif val == 1:
+                    params_list[idx] = True
             return tuple(params_list)
         
         return params

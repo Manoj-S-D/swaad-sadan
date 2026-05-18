@@ -22,14 +22,12 @@
 {% block scripts %}
 <script>
     async function loadProducts(filters = {}) {
-        // By default, only show in-stock (available) products
-        if (!('isAvailable' in filters)) {
-            filters.isAvailable = 1;
-        }
-        
+        // Don't send isAvailable filter - backend handles it automatically
         const params = new URLSearchParams(filters);
         const response = await fetch(`/api/products?${params}`);
         const data = await response.json();
+        
+        console.log('Menu products:', data);
         
         const container = document.getElementById('products-container');
         if (data.success && data.products.length > 0) {
