@@ -9,7 +9,7 @@ def is_admin(user_id):
     user = User.find_by_id(user_id)
     return user and user.get('role') == 'admin'
 
-@bp.route('/', methods=['GET'])
+@bp.route('/', methods=['GET'], strict_slashes=False)
 def get_products():
     """Get all products"""
     try:

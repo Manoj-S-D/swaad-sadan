@@ -46,11 +46,11 @@ async function loadProducts(filters) {
     container.innerHTML = '<p style="text-align: center; padding: 2rem;">Loading...</p>';
     
     try {
-        // FORCE HTTPS with absolute URL
+        // Simple relative URL - route now has strict_slashes=False
         const params = new URLSearchParams(filters);
-        const url = 'https://swaad-sadan.onrender.com/api/products?' + params.toString();
+        const url = '/api/products?' + params.toString();
         console.log('=== FETCH ATTEMPT ===');
-        console.log('Absolute URL:', url);
+        console.log('URL:', url);
         console.log('Filters:', filters);
         
         const response = await fetch(url, {
