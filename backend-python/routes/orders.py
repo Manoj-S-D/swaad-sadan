@@ -285,21 +285,32 @@ def add_order_comment(order_id):
         user_id = get_jwt_identity()
         data = request.get_json()
         
+        print(f"🔍 Comment request - User ID: {user_id}, Order ID: {order_id}, Type: {type(user_id)}")
+        
         # Verify order belongs to user
         db = Database.get_db()
         cursor = db.cursor()
-        cursor.execute('SELECT userId FROM orders WHERE id = ?', (order_id,))
+        cursor.execute('SELECT * FROM orders WHERE id = ?', (order_id,))
         order = cursor.fetchone()
         
         if not order:
             db.close()
             return jsonify({'success': False, 'message': 'Order not found'}), 404
         
-        # Check if userId field exists, handle both 'userId' and 'user' column names
-        order_user_id = order.get('userId') or order.get('user')
-        if not order_user_id or order_user_id != user_id:
+        # Get userId from order - handle different column name possibilities
+        order_user_id = order.get('userId') if 'userId' in order else order.get('user')
+        
+        print(f"🔍 Order found - Order User ID: {order_user_id}, Type: {type(order_user_id)}")
+        print(f"🔍 Comparison: {order_user_id} == {user_id} -> {order_user_id == user_id}")
+        print(f"🔍 String comparison: {str(order_user_id)} == {str(user_id)} -> {str(order_user_id) == str(user_id)}")
+        
+        # Convert both to int for comparison to handle type mismatches
+        if not order_user_id or int(order_user_id) != int(user_id):
             db.close()
-            return jsonify({'success': False, 'message': 'Unauthorized - This order does not belong to you'}), 403
+            return jsonify({
+                'success': False, 
+                'message': f'Unauthorized - This order does not belong to you (Order user: {order_user_id}, Your ID: {user_id})'
+            }), 403
         
         # Check if comment already exists
         cursor.execute('SELECT id FROM order_comments WHERE orderId = ? AND userId = ?', (order_id, user_id))
@@ -344,14 +355,18 @@ def get_order_comments(order_id):
         cursor = db.cursor()
         
         # Check if user is admin or order owner
-        cursor.execute('SELECT userId FROM orders WHERE id = ?', (order_id,))
+        cursor.execute('SELECT * FROM orders WHERE id = ?', (order_id,))
         order = cursor.fetchone()
         
         if not order:
             db.close()
             return jsonify({'success': False, 'message': 'Order not found'}), 404
         
-        if not is_admin(user_id) and order['userId'] != user_id:
+        # Get userId from order
+        order_user_id = order.get('userId') if 'userId' in order else order.get('user')
+        
+        # Convert to int for comparison
+        if not is_admin(user_id) and int(order_user_id) != int(user_id):
             db.close()
             return jsonify({'success': False, 'message': 'Unauthorized'}), 403
         
