@@ -164,7 +164,7 @@ def delete_package(package_id):
             return jsonify({'success': False, 'message': 'Unauthorized'}), 403
         
         # Soft delete
-        cursor.execute('UPDATE event_packages SET isActive = 0 WHERE id = ?', (package_id,))
+        cursor.execute('UPDATE event_packages SET isActive = FALSE WHERE id = ?', (package_id,))
         
         conn.commit()
         conn.close()

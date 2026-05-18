@@ -143,7 +143,7 @@ def create_coupon():
             INSERT INTO coupons (
                 code, type, value, maxDiscount, minOrderValue, 
                 category, description, expiryDate, usageLimit, isActive
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             code,
             data['type'],
@@ -153,7 +153,8 @@ def create_coupon():
             data.get('category'),
             data.get('description'),
             data['expiryDate'],
-            data.get('usageLimit', 100)
+            data.get('usageLimit', 100),
+            data.get('isActive', 1)  # Will be converted to TRUE by UnifiedCursor
         ))
         
         db.commit()
@@ -181,7 +182,7 @@ def delete_coupon(coupon_id):
         db = get_db()
         cursor = db.cursor()
         
-        cursor.execute('UPDATE coupons SET isActive = 0 WHERE id = ?', (coupon_id,))
+        cursor.execute('UPDATE coupons SET isActive = FALSE WHERE id = ?', (coupon_id,))
         db.commit()
         
         if cursor.rowcount == 0:
