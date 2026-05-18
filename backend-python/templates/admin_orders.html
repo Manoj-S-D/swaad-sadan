@@ -247,7 +247,7 @@ async function viewOrderDetails(orderId) {
                         <p>
                             <strong>Delivery Location:</strong> 
                             <span style="color: #666; font-size: 0.9rem;">${order.deliveryLatitude}, ${order.deliveryLongitude}</span>
-                            <a href="https://www.google.com/maps?q=${order.deliveryLatitude},${order.deliveryLongitude}" 
+                            <a href="https://www.openstreetmap.org/?mlat=${order.deliveryLatitude}&mlon=${order.deliveryLongitude}&zoom=15" 
                                target="_blank" 
                                class="btn btn-sm btn-success" 
                                style="margin-left: 1rem; padding: 0.3rem 0.8rem; text-decoration: none; display: inline-block;">
