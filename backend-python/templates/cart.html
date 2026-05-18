@@ -581,6 +581,21 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initMap(lat = 28.6139, lng = 77.2090) {
+    // Check if Leaflet library is loaded
+    if (typeof L === 'undefined') {
+        console.error('Leaflet library (L) is not loaded!');
+        showAlert('Map library is still loading. Please wait a moment and try again.', 'error');
+        // Retry after 2 seconds
+        setTimeout(() => {
+            if (typeof L !== 'undefined') {
+                initMap(lat, lng);
+            } else {
+                showAlert('Map failed to load. Please refresh the page.', 'error');
+            }
+        }, 2000);
+        return;
+    }
+    
     // Initialize Leaflet map centered on Delhi by default
     if (map) {
         map.remove(); // Remove existing map if any
@@ -630,8 +645,8 @@ function searchLocation() {
     }
     
     // Check if map is initialized
-    if (!map) {
-        showAlert('Map is initializing. Please wait a moment.', 'info');
+    if (!map || typeof L === 'undefined') {
+        showAlert('Map is not ready yet. Please wait a moment.', 'info');
         return;
     }
     
@@ -711,6 +726,19 @@ function updateLocationFromLatLng(lat, lng) {
 }
 
 function openMapPicker() {
+    // Check if Leaflet is loaded
+    if (typeof L === 'undefined') {
+        showAlert('Map library is still loading. Please wait a moment...', 'info');
+        setTimeout(() => {
+            if (typeof L !== 'undefined') {
+                openMapPicker(); // Retry
+            } else {
+                showAlert('Map failed to load. Please refresh the page.', 'error');
+            }
+        }, 2000);
+        return;
+    }
+    
     // Show modal first
     document.getElementById('mapModal').style.display = 'block';
     
@@ -749,7 +777,7 @@ function openMapPicker() {
                 initMap(13.0005232, 77.5496166);
             }
         }
-    }, 200);
+    }, 300);
 }
 
 function closeMapPicker() {
@@ -762,7 +790,7 @@ function getCurrentLocation() {
         return;
     }
     
-    if (!map) {
+    if (!map || typeof L === 'undefined') {
         showAlert('Map is not initialized yet', 'error');
         return;
     }
@@ -788,16 +816,16 @@ function getCurrentLocation() {
             
             switch(error.code) {
                 case error.PERMISSION_DENIED:
-                    errorMsg += 'Please allow location access in your browser.';
+                    errorMsg += 'Please allow location access in your browser settings.';
                     break;
                 case error.POSITION_UNAVAILABLE:
-                    errorMsg += 'Location information unavailable.';
+                    errorMsg += 'Location information is unavailable.';
                     break;
                 case error.TIMEOUT:
-                    errorMsg += 'Location request timed out.';
+                    errorMsg += 'Location request timed out. Try again.';
                     break;
                 default:
-                    errorMsg += 'Unknown error occurred.';
+                    errorMsg += 'An unknown error occurred.';
             }
             
             showAlert(errorMsg, 'error');
