@@ -3,7 +3,7 @@ from models import Settings
 
 bp = Blueprint('settings', __name__)
 
-@bp.route('/', methods=['GET'])
+@bp.route('/', methods=['GET'], strict_slashes=False)
 def get_settings():
     """Get app settings"""
     try:

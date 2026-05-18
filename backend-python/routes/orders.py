@@ -10,7 +10,7 @@ def is_admin(user_id):
     user = User.find_by_id(user_id)
     return user and user.get('role') == 'admin'
 
-@bp.route('/', methods=['POST'])
+@bp.route('/', methods=['POST'], strict_slashes=False)
 @jwt_required()
 def create_order():
     """Create new order"""
@@ -134,7 +134,7 @@ def create_order():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
-@bp.route('/my-orders', methods=['GET'])
+@bp.route('/my-orders', methods=['GET'], strict_slashes=False)
 @jwt_required()
 def get_my_orders():
     """Get user's orders"""

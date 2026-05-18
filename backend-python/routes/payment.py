@@ -38,7 +38,7 @@ def get_key():
         'key': key_id
     })
 
-@bp.route('/create-order', methods=['POST'])
+@bp.route('/create-order', methods=['POST'], strict_slashes=False)
 def create_payment_order():
     """Create Razorpay order for checkout"""
     try:
@@ -78,7 +78,7 @@ def create_payment_order():
             'message': f'Payment order creation failed: {str(e)}'
         }), 500
 
-@bp.route('/verify', methods=['POST'])
+@bp.route('/verify', methods=['POST'], strict_slashes=False)
 def verify_payment():
     """Verify Razorpay payment signature"""
     try:

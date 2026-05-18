@@ -7,7 +7,7 @@ import json
 
 bp = Blueprint('auth', __name__)
 
-@bp.route('/register', methods=['POST'])
+@bp.route('/register', methods=['POST'], strict_slashes=False)
 def register():
     """Register new user"""
     try:
@@ -65,7 +65,7 @@ def register():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
-@bp.route('/login', methods=['POST'])
+@bp.route('/login', methods=['POST'], strict_slashes=False)
 def login():
     """User login"""
     try:

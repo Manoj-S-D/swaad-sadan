@@ -5,7 +5,7 @@ import json
 
 bp = Blueprint('loyalty', __name__)
 
-@bp.route('/my-points', methods=['GET'])
+@bp.route('/my-points', methods=['GET'], strict_slashes=False)
 @jwt_required()
 def get_my_points():
     """Get user's loyalty points"""

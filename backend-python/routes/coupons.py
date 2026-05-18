@@ -12,7 +12,7 @@ def is_admin(user_id):
     user = User.find_by_id(user_id)
     return user and user.get('role') == 'admin'
 
-@bp.route('/', methods=['GET'])
+@bp.route('/', methods=['GET'], strict_slashes=False)
 def get_active_coupons():
     """Get all active coupons"""
     try:
@@ -37,7 +37,7 @@ def get_active_coupons():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
-@bp.route('/validate', methods=['POST'])
+@bp.route('/validate', methods=['POST'], strict_slashes=False)
 @jwt_required()
 def validate_coupon():
     """Validate a coupon code"""
