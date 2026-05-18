@@ -30,104 +30,88 @@
 
 {% block scripts %}
 <script>
-    // Version check for debugging cache issues
-    console.log('🔄 Menu.html version: HTTPS-FIX-v2 (May 18, 2026)');
-    console.log('🌐 Current protocol:', window.location.protocol);
-    console.log('🔗 Origin:', window.location.origin);
+// Simple, clean code - exactly like admin page
+console.log('Menu page loaded');
+
+let menuProducts = [];
+
+async function loadProducts(filters) {
+    // Prevent event objects from being passed
+    if (filters && typeof filters.preventDefault === 'function') {
+        filters = {};
+    }
+    if (!filters) filters = {};
     
-    // Store products globally
-    let menuProducts = [];
+    const container = document.getElementById('products-container');
+    container.innerHTML = '<p style="text-align: center; padding: 2rem;">Loading...</p>';
     
-    async function loadProducts(filters = {}) {
-        const container = document.getElementById('products-container');
+    try {
+        // Simple relative URL - same as admin
+        const params = new URLSearchParams(filters);
+        const url = '/api/products?' + params.toString();
+        console.log('Fetching:', url);
         
-        try {
-            // Prevent Event objects from being passed as filters
-            if (filters && filters.constructor && filters.constructor.name === 'Event') {
-                filters = {};
-            }
-            
-            // Show loading message
-            container.innerHTML = '<p style="text-align: center; padding: 3rem;">Loading menu...</p>';
-            
-            // FORCE HTTPS - use absolute URL with explicit protocol
-            const params = new URLSearchParams(filters);
-            const baseUrl = window.location.hostname;
-            const url = `https://${baseUrl}/api/products?${params}`;
-            console.log('Fetching from:', url);
-            const response = await fetch(url);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-            
-            const data = await response.json();
-            console.log('Products loaded:', data);
-            
-            // Check if we have products
-            if (!data.products || data.products.length === 0) {
-                container.innerHTML = '<p style="text-align: center; padding: 3rem;">No products available. Please check back later!</p>';
-                return;
-            }
-            
-            // Store products globally
-            menuProducts = data.products;
-            
-            // Render products
-            const html = menuProducts.map(product => {
-                const isAvailable = product.isAvailable === 1 || product.isAvailable === true;
-                const isVeg = product.isVeg === 1 || product.isVeg === true;
-                const isHealthBox = product.isHealthBox === 1 || product.isHealthBox === true;
-                
-                return `
-                    <div class="product-card" style="${!isAvailable ? 'opacity: 0.6;' : ''}">
-                        <div class="product-img" style="background: linear-gradient(135deg, #FFE0B2, #FFAB91); display: flex; align-items: center; justify-content: center; font-size: 4rem;">
-                            ${isVeg ? '🥗' : '🍱'}
-                        </div>
-                        <div class="product-info">
-                            <h3 class="product-name">${product.name}</h3>
-                            <p class="product-price">₹${product.price}</p>
-                            <div style="margin: 0.5rem 0;">
-                                ${!isAvailable ? '<span class="product-badge" style="background: #DC3545; color: white;">❌ Out of Stock</span>' : ''}
-                                ${isVeg ? '<span class="product-badge badge-veg">🌿 Pure Veg</span>' : ''}
-                                ${isHealthBox ? '<span class="product-badge badge-health">💪 Health Box</span>' : ''}
-                            </div>
-                            <p style="color: #666; font-size: 0.9rem;">${product.description || 'Delicious homemade food'}</p>
-                            ${isAvailable 
-                                ? `<button class="btn btn-primary" style="margin-top: 1rem; width: 100%;" onclick="addProductToCart(${product.id})">Add to Cart</button>`
-                                : '<button class="btn btn-secondary" style="margin-top: 1rem; width: 100%;" disabled>Out of Stock</button>'
-                            }
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            
-            container.innerHTML = html;
-            
-        } catch (error) {
-            console.error('Error loading products:', error);
-            container.innerHTML = `
-                <div style="text-align: center; padding: 3rem;">
-                    <p style="color: red; margin-bottom: 1rem;">❌ Error loading menu</p>
-                    <p style="color: #666; margin-bottom: 1rem;">Details: ${error.message}</p>
-                    <button class="btn btn-primary" onclick="loadProducts()">Try Again</button>
+        const response = await fetch(url);
+        console.log('Response status:', response.status);
+        
+        if (!response.ok) {
+            throw new Error('Server returned ' + response.status);
+        }
+        
+        const data = await response.json();
+        console.log('Data received:', data);
+        
+        if (!data.products || data.products.length === 0) {
+            container.innerHTML = '<p style="text-align: center; padding: 2rem;">No products found</p>';
+            return;
+        }
+        
+        menuProducts = data.products;
+        
+        // Render products
+        container.innerHTML = menuProducts.map(product => `
+            <div class="product-card">
+                <div class="product-img" style="background: linear-gradient(135deg, #FFE0B2, #FFAB91); display: flex; align-items: center; justify-content: center; font-size: 3rem;">
+                    ${product.isVeg ? '🥗' : '🍱'}
                 </div>
-            `;
-        }
+                <div class="product-info">
+                    <h3 class="product-name">${product.name}</h3>
+                    <p class="product-price">₹${product.price}</p>
+                    ${product.description ? `<p style="color: #666; font-size: 0.9rem;">${product.description}</p>` : ''}
+                    <button class="btn btn-primary" style="margin-top: 1rem; width: 100%;" onclick="addToCart(${product.id})">
+                        Add to Cart
+                    </button>
+                </div>
+            </div>
+        `).join('');
+        
+    } catch (error) {
+        console.error('Error:', error);
+        container.innerHTML = `
+            <div style="text-align: center; padding: 2rem;">
+                <p style="color: red;">Error: ${error.message}</p>
+                <button class="btn btn-primary" onclick="loadProducts()">Retry</button>
+            </div>
+        `;
     }
-    
-    function addProductToCart(productId) {
-        const product = menuProducts.find(p => p.id === productId);
-        if (product && typeof addToCart === 'function') {
-            addToCart(product);
-        } else {
-            alert('Please wait for the page to fully load');
-        }
+}
+
+function addToCart(productId) {
+    const product = menuProducts.find(p => p.id === productId);
+    if (product) {
+        alert('Added ' + product.name + ' to cart (₹' + product.price + ')');
+        console.log('Added to cart:', product);
     }
-    
-    // Load products when page is ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', loadProducts);
+}
+
+// Auto-load on page ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => loadProducts());
+} else {
+    loadProducts();
+}
+</script>
+{% endblock %}
     } else {
         loadProducts();
     }
