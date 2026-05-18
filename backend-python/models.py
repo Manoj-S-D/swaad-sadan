@@ -241,9 +241,10 @@ class Settings:
                     'hygienicPreparation': True
                 })
             }
+            # Don't specify id - let database auto-generate or use default
             cursor.execute('''
-                INSERT INTO settings (id, deliveryCharges, parcelCharge, offers, contactInfo, trustBadges)
-                VALUES (1, ?, ?, ?, ?, ?)
+                INSERT INTO settings (deliveryCharges, parcelCharge, offers, contactInfo, trustBadges)
+                VALUES (?, ?, ?, ?, ?)
             ''', (
                 default_settings['deliveryCharges'],
                 default_settings['parcelCharge'],
