@@ -27,6 +27,7 @@ class User:
         cursor.execute('''
             INSERT INTO users (name, email, phone, password, role, isActive, addresses)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
         ''', (
             data['name'],
             data['email'],
@@ -36,8 +37,8 @@ class User:
             data.get('isActive', 1),
             json.dumps(data.get('addresses', []))
         ))
+        user_id = cursor.fetchone()[0]
         db.commit()
-        user_id = cursor.lastrowid
         db.close()
         return user_id
     
@@ -69,6 +70,7 @@ class Product:
         cursor.execute('''
             INSERT INTO products (name, description, category, price, image, isVeg, isHealthBox, isAvailable, nutrition)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
         ''', (
             data['name'],
             data.get('description', ''),
@@ -80,8 +82,8 @@ class Product:
             data.get('isAvailable', 1),
             json.dumps(data.get('nutrition', {}))
         ))
+        product_id = cursor.fetchone()[0]
         db.commit()
-        product_id = cursor.lastrowid
         db.close()
         return product_id
     
@@ -167,6 +169,7 @@ class Order:
         cursor.execute('''
             INSERT INTO orders (orderNumber, userId, items, orderType, deliveryAddress, pricing, payment, status, specialInstructions)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
         ''', (
             order_number,
             data['user'],
@@ -178,8 +181,8 @@ class Order:
             data.get('status', 'pending'),
             data.get('specialInstructions', '')
         ))
+        order_id = cursor.fetchone()[0]
         db.commit()
-        order_id = cursor.lastrowid
         db.close()
         return order_id
     
