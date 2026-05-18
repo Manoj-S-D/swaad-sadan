@@ -21,49 +21,72 @@
 
 {% block scripts %}
 <script>
+    // Store products globally to avoid JSON.stringify issues in onclick
+    let menuProducts = [];
+    
     async function loadProducts(filters = {}) {
-        // Don't send isAvailable filter - backend handles it automatically
-        const params = new URLSearchParams(filters);
-        const response = await fetch(`/api/products?${params}`);
-        const data = await response.json();
-        
-        console.log('Menu products:', data);
-        
-        const container = document.getElementById('products-container');
-        if (data.success && data.products.length > 0) {
-            container.innerHTML = data.products.map(p => {
-                // Show out of stock badge if not available
-                const outOfStockBadge = p.isAvailable === 0 
-                    ? '<span class="product-badge" style="background: #DC3545; color: white;">❌ Out of Stock</span>' 
-                    : '';
-                const addToCartBtn = p.isAvailable === 1 
-                    ? `<button class="btn btn-primary" style="margin-top: 1rem; width: 100%;" onclick='addToCart(${JSON.stringify(p)})'>Add to Cart</button>`
-                    : '<button class="btn btn-secondary" style="margin-top: 1rem; width: 100%;" disabled>Out of Stock</button>';
+        try {
+            const params = new URLSearchParams(filters);
+            const response = await fetch(`/api/products?${params}`);
+            const data = await response.json();
+            
+            console.log('API Response:', data);
+            
+            const container = document.getElementById('products-container');
+            
+            if (!data.success) {
+                container.innerHTML = `<p style="text-align: center; padding: 3rem; color: red;">Error: ${data.message || 'Failed to load products'}</p>`;
+                return;
+            }
+            
+            if (data.products && data.products.length > 0) {
+                menuProducts = data.products; // Store globally
                 
-                return `
-                    <div class="product-card" style="${p.isAvailable === 0 ? 'opacity: 0.6;' : ''}">
-                        <div class="product-img" style="background: linear-gradient(135deg, #FFE0B2, #FFAB91); display: flex; align-items: center; justify-content: center; font-size: 4rem;">
-                            ${p.isVeg ? '🥗' : '🍱'}
-                        </div>
-                        <div class="product-info">
-                            <h3 class="product-name">${p.name}</h3>
-                            <p class="product-price">₹${p.price}</p>
-                            <div style="margin: 0.5rem 0;">
-                                ${outOfStockBadge}
-                                ${p.isVeg ? '<span class="product-badge badge-veg">🌿 Pure Veg</span>' : ''}
-                                ${p.isHealthBox ? '<span class="product-badge badge-health">💪 Health Box</span>' : ''}
+                container.innerHTML = data.products.map(p => {
+                    const outOfStockBadge = p.isAvailable === 0 
+                        ? '<span class="product-badge" style="background: #DC3545; color: white;">❌ Out of Stock</span>' 
+                        : '';
+                    const addToCartBtn = p.isAvailable === 1 
+                        ? `<button class="btn btn-primary" style="margin-top: 1rem; width: 100%;" onclick="addProductToCart(${p.id})">Add to Cart</button>`
+                        : '<button class="btn btn-secondary" style="margin-top: 1rem; width: 100%;" disabled>Out of Stock</button>';
+                    
+                    return `
+                        <div class="product-card" style="${p.isAvailable === 0 ? 'opacity: 0.6;' : ''}">
+                            <div class="product-img" style="background: linear-gradient(135deg, #FFE0B2, #FFAB91); display: flex; align-items: center; justify-content: center; font-size: 4rem;">
+                                ${p.isVeg ? '🥗' : '🍱'}
                             </div>
-                            <p style="color: #666; font-size: 0.9rem;">${p.description || 'Delicious homemade food'}</p>
-                            ${addToCartBtn}
+                            <div class="product-info">
+                                <h3 class="product-name">${p.name}</h3>
+                                <p class="product-price">₹${p.price}</p>
+                                <div style="margin: 0.5rem 0;">
+                                    ${outOfStockBadge}
+                                    ${p.isVeg ? '<span class="product-badge badge-veg">🌿 Pure Veg</span>' : ''}
+                                    ${p.isHealthBox ? '<span class="product-badge badge-health">💪 Health Box</span>' : ''}
+                                </div>
+                                <p style="color: #666; font-size: 0.9rem;">${p.description || 'Delicious homemade food'}</p>
+                                ${addToCartBtn}
+                            </div>
                         </div>
-                    </div>
-                `;
-            }).join('');
-        } else {
-            container.innerHTML = '<p style="text-align: center; padding: 3rem;">No products available. Please check back later!</p>';
+                    `;
+                }).join('');
+            } else {
+                container.innerHTML = '<p style="text-align: center; padding: 3rem;">No products available. Please check back later!</p>';
+            }
+        } catch (error) {
+            console.error('Error loading products:', error);
+            document.getElementById('products-container').innerHTML = 
+                `<p style="text-align: center; padding: 3rem; color: red;">Error loading menu. Please refresh the page.</p>`;
         }
     }
     
+    function addProductToCart(productId) {
+        const product = menuProducts.find(p => p.id === productId);
+        if (product) {
+            addToCart(product);
+        }
+    }
+    
+    // Load products on page load
     loadProducts();
 </script>
 {% endblock %}
