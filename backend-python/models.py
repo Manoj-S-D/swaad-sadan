@@ -34,7 +34,7 @@ class User:
             data['phone'],
             data['password'],
             data.get('role', 'customer'),
-            data.get('isActive', 1),
+            bool(data.get('isActive', True)),
             json.dumps(data.get('addresses', []))
         ))
         user_id = cursor.fetchone()[0]
@@ -77,9 +77,9 @@ class Product:
             data.get('category', ''),
             data['price'],
             data.get('image', ''),
-            data.get('isVeg', 1),
-            data.get('isHealthBox', 0),
-            data.get('isAvailable', 1),
+            bool(data.get('isVeg', True)),
+            bool(data.get('isHealthBox', False)),
+            bool(data.get('isAvailable', True)),
             json.dumps(data.get('nutrition', {}))
         ))
         product_id = cursor.fetchone()[0]
@@ -96,7 +96,7 @@ class Product:
         if include_unavailable:
             query = 'SELECT * FROM products WHERE 1=1'
         else:
-            query = 'SELECT * FROM products WHERE isAvailable = 1'
+            query = 'SELECT * FROM products WHERE isAvailable = TRUE'
         
         params = []
         
@@ -106,10 +106,10 @@ class Product:
                 params.append(filters['category'])
             if 'isVeg' in filters:
                 query += ' AND isVeg = %s'
-                params.append(1 if filters['isVeg'] else 0)
+                params.append(bool(filters['isVeg']))
             if 'isHealthBox' in filters:
                 query += ' AND isHealthBox = %s'
-                params.append(1 if filters['isHealthBox'] else 0)
+                params.append(bool(filters['isHealthBox']))
         
         cursor.execute(query, params)
         products = cursor.fetchall()
@@ -133,10 +133,17 @@ class Product:
         fields = []
         values = []
         
+        # Boolean fields that need type conversion
+        boolean_fields = ['isVeg', 'isHealthBox', 'isAvailable']
+        
         for key, value in data.items():
             if key in ['name', 'description', 'category', 'price', 'image', 'isVeg', 'isHealthBox', 'isAvailable']:
                 fields.append(f'{key} = %s')
-                values.append(value)
+                # Convert to boolean for boolean fields
+                if key in boolean_fields:
+                    values.append(bool(value))
+                else:
+                    values.append(value)
         
         if fields:
             values.append(product_id)
