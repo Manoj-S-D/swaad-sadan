@@ -7,6 +7,17 @@
         <p>View and manage customer orders</p>
     </div>
     
+    <div style="margin-bottom: 1.5rem;">
+        <input 
+            type="text" 
+            id="searchBox" 
+            class="form-control" 
+            placeholder="Search by order number, customer name, phone..." 
+            onkeyup="searchOrders()"
+            style="max-width: 500px;"
+        >
+    </div>
+    
     <div id="orders-list"></div>
     
     <!-- Order Details Modal -->
@@ -130,6 +141,16 @@
 document.addEventListener('DOMContentLoaded', () => {
     loadAdminOrders();
 });
+
+function searchOrders() {
+    const query = document.getElementById('searchBox').value.toLowerCase();
+    const rows = document.querySelectorAll('#orders-list tbody tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(query) ? '' : 'none';
+    });
+}
 
 async function loadAdminOrders() {
     const token = localStorage.getItem('token');
@@ -267,6 +288,33 @@ async function viewOrderDetails(orderId) {
                     <h4 style="margin-top: 1.5rem;">Payment</h4>
                     <p><strong>Method:</strong> ${payment.method === 'cod' ? 'Cash on Delivery' : 'Online Payment'}</p>
                     <p><strong>Status:</strong> ${payment.status}</p>
+                    ${payment.transactionId ? `
+                        <p><strong>Transaction ID:</strong> <code style="background: #f0f0f0; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.9rem;">${payment.transactionId}</code></p>
+                    ` : ''}
+                    ${payment.orderId ? `
+                        <p><strong>Payment Order ID:</strong> <code style="background: #f0f0f0; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.9rem;">${payment.orderId}</code></p>
+                    ` : ''}
+                    
+                    ${order.status !== 'cancelled' && order.status !== 'completed' ? `
+                        <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #ddd;">
+                            <h4>Order Actions</h4>
+                            ${payment.status === 'paid' && payment.transactionId ? `
+                                <button class="btn btn-danger" onclick="cancelAndRefundOrder(${order.id}, '${payment.transactionId}', ${pricing.total})">
+                                    Cancel Order & Process Refund
+                                </button>
+                                <p style="font-size: 0.85rem; color: #999; margin-top: 0.5rem;">
+                                    Payment ID: ${payment.transactionId} | Amount: ₹${pricing.total}
+                                </p>
+                            ` : order.status === 'pending' ? `
+                                <button class="btn btn-danger" onclick="cancelOrder(${order.id})">
+                                    Cancel Order
+                                </button>
+                                <p style="font-size: 0.85rem; color: #999; margin-top: 0.5rem;">
+                                    ${payment.method === 'cod' ? 'No payment to refund (COD)' : 'Payment not completed yet'}
+                                </p>
+                            ` : ''}
+                        </div>
+                    ` : ''}
                     
                     <div class="comment-section" id="comment-section-${order.id}">
                         <h4>Customer Feedback</h4>
@@ -430,6 +478,73 @@ async function submitReply(commentId, orderId) {
     } catch (error) {
         console.error('Failed to submit reply:', error);
         showAlert('Failed to send reply', 'error');
+    }
+}
+
+async function cancelOrder(orderId) {
+    if (!confirm('Are you sure you want to cancel this order?')) {
+        return;
+    }
+    
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch(`/api/orders/${orderId}/status`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ status: 'cancelled' })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            showAlert('Order cancelled successfully!', 'success');
+            closeOrderModal();
+            loadAdminOrders();
+        } else {
+            showAlert(data.message || 'Failed to cancel order', 'error');
+        }
+    } catch (error) {
+        console.error('Failed to cancel order:', error);
+        showAlert('Failed to cancel order', 'error');
+    }
+}
+
+async function cancelAndRefundOrder(orderId, paymentId, amount) {
+    const confirmMessage = `Cancel order and process refund?\n\nPayment ID: ${paymentId}\nRefund Amount: ₹${amount}\n\nThis action cannot be undone.`;
+    
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+    
+    const token = localStorage.getItem('token');
+    try {
+        // First cancel the order (this will auto-trigger refund on backend)
+        const response = await fetch(`/api/orders/${orderId}/status`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ status: 'cancelled' })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            if (data.refundId) {
+                showAlert(`Order cancelled and refund processed!\nRefund ID: ${data.refundId}`, 'success');
+            } else {
+                showAlert('Order cancelled successfully! Refund will be processed.', 'success');
+            }
+            closeOrderModal();
+            loadAdminOrders();
+        } else {
+            showAlert(data.message || 'Failed to cancel order', 'error');
+        }
+    } catch (error) {
+        console.error('Failed to cancel and refund order:', error);
+        showAlert('Failed to cancel and refund order', 'error');
     }
 }
 </script>

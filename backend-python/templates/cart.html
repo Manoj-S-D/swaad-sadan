@@ -48,7 +48,13 @@
                 
                 <div id="addressSection" class="form-group">
                     <label>Delivery Address</label>
-                    <textarea class="form-control" id="deliveryAddress" rows="3" placeholder="Enter your full address"></textarea>
+                    <select class="form-control" id="savedAddresses" onchange="selectSavedAddress()" style="margin-bottom: 0.5rem;">
+                        <option value="">Select saved address...</option>
+                    </select>
+                    <textarea class="form-control" id="deliveryAddress" rows="3" placeholder="Or enter a new address"></textarea>
+                    <a href="/profile" style="font-size: 0.9rem; color: var(--primary); text-decoration: none; display: inline-block; margin-top: 0.5rem;">
+                        ➕ Manage saved addresses
+                    </a>
                 </div>
                 
                 <div class="form-group">
@@ -157,6 +163,65 @@ async function loadUserPoints() {
     } catch (error) {
         console.error('Failed to load points:', error);
     }
+    
+    // Also load saved addresses
+    loadSavedAddresses();
+}
+
+async function loadSavedAddresses() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    try {
+        const response = await fetch('/api/auth/addresses', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        if (data.success && data.addresses && data.addresses.length > 0) {
+            const select = document.getElementById('savedAddresses');
+            const defaultAddr = data.addresses.find(a => a.isDefault);
+            
+            select.innerHTML = '<option value="">Select saved address...</option>' +
+                data.addresses.map(addr => `
+                    <option value="${addr.id}" ${addr.isDefault ? 'selected' : ''}>
+                        ${addr.label} - ${addr.addressLine1}, ${addr.city}
+                    </option>
+                `).join('');
+            
+            // Auto-fill default address
+            if (defaultAddr) {
+                const fullAddress = `${defaultAddr.addressLine1}${defaultAddr.addressLine2 ? ', ' + defaultAddr.addressLine2 : ''}, ${defaultAddr.city}, ${defaultAddr.state} - ${defaultAddr.pincode}${defaultAddr.landmark ? ', Near ' + defaultAddr.landmark : ''}`;
+                document.getElementById('deliveryAddress').value = fullAddress;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load addresses:', error);
+    }
+}
+
+function selectSavedAddress() {
+    const selectedId = document.getElementById('savedAddresses').value;
+    if (!selectedId) {
+        document.getElementById('deliveryAddress').value = '';
+        return;
+    }
+    
+    const token = localStorage.getItem('token');
+    fetch('/api/auth/addresses', {
+        headers: { 'Authorization': `Bearer ${token}` }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const addr = data.addresses.find(a => a.id == selectedId);
+            if (addr) {
+                const fullAddress = `${addr.addressLine1}${addr.addressLine2 ? ', ' + addr.addressLine2 : ''}, ${addr.city}, ${addr.state} - ${addr.pincode}${addr.landmark ? ', Near ' + addr.landmark : ''}`;
+                document.getElementById('deliveryAddress').value = fullAddress;
+            }
+        }
+    })
+    .catch(error => console.error('Failed to load address:', error));
 }
 
 function updateOrderSummary() {

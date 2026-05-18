@@ -8,7 +8,15 @@
     </div>
     
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-        <h3>Product Catalog</h3>
+        <div style="flex: 1; max-width: 400px;">
+            <input 
+                type="text" 
+                id="searchBox" 
+                class="form-control" 
+                placeholder="Search products by name or category..." 
+                onkeyup="searchProducts()"
+            >
+        </div>
         <button class="btn btn-primary" onclick="showAddProductForm()">+ Add New Product</button>
     </div>
     
@@ -87,6 +95,19 @@
 document.addEventListener('DOMContentLoaded', () => {
     loadAdminProducts();
 });
+
+function searchProducts() {
+    const query = document.getElementById('searchBox').value.toLowerCase();
+    const tables = document.querySelectorAll('#live-products-list table, #catalog-products-list table');
+    
+    tables.forEach(table => {
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(query) ? '' : 'none';
+        });
+    });
+}
 
 async function loadAdminProducts() {
     // Fetch all products including catalog items (isAvailable=0)
