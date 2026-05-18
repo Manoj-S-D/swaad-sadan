@@ -1,0 +1,10 @@
+# Create .gitignore
+@"
+.env
+.env.local
+*.db
+*.sqlite
+__pycache__/
+*.pyc
+.vscode/
+"@ | Out-File -FilePath .gitignore -Encoding utf8
