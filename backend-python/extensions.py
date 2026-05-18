@@ -44,8 +44,9 @@ class UnifiedCursor:
             query = re.sub(r"json_extract\((\w+),\s*'\$\.(\w+)'\)", r"\1->>'\2'", query)
             
             # Convert SQLite date functions to PostgreSQL
-            query = query.replace("date('now')", "CURRENT_DATE")
-            query = query.replace("datetime('now')", "CURRENT_TIMESTAMP")
+            # Cast to TEXT for compatibility with TEXT date columns
+            query = query.replace("date('now')", "CURRENT_DATE::TEXT")
+            query = query.replace("datetime('now')", "CURRENT_TIMESTAMP::TEXT")
             
             # Convert hardcoded boolean 0 and 1 values in INSERT VALUES
             # Match only single digit 0 or 1 surrounded by commas/parentheses
