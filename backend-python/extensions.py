@@ -502,6 +502,44 @@ def _init_sqlite():
         )
     ''')
     
+    # Order Comments table (customer feedback and admin replies)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS order_comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            orderId INTEGER NOT NULL,
+            userId INTEGER NOT NULL,
+            rating INTEGER CHECK(rating >= 1 AND rating <= 5),
+            comment TEXT,
+            adminReply TEXT,
+            repliedAt TIMESTAMP,
+            createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (orderId) REFERENCES orders (id),
+            FOREIGN KEY (userId) REFERENCES users (id)
+        )
+    ''')
+    
+    # User Addresses table (saved delivery locations)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS user_addresses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            userId INTEGER NOT NULL,
+            label TEXT NOT NULL,
+            addressLine1 TEXT NOT NULL,
+            addressLine2 TEXT,
+            city TEXT NOT NULL,
+            state TEXT NOT NULL,
+            pincode TEXT NOT NULL,
+            landmark TEXT,
+            latitude REAL,
+            longitude REAL,
+            isDefault INTEGER DEFAULT 0,
+            createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (userId) REFERENCES users (id)
+        )
+    ''')
+    
     conn.commit()
     conn.close()
     
@@ -705,6 +743,44 @@ def _init_postgres():
             createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (requestId) REFERENCES service_requests (id),
             FOREIGN KEY (senderId) REFERENCES users (id)
+        )
+    ''')
+    
+    # Order Comments table (customer feedback and admin replies)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS order_comments (
+            id SERIAL PRIMARY KEY,
+            orderId INTEGER NOT NULL,
+            userId INTEGER NOT NULL,
+            rating INTEGER CHECK(rating >= 1 AND rating <= 5),
+            comment TEXT,
+            adminReply TEXT,
+            repliedAt TIMESTAMP,
+            createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (orderId) REFERENCES orders (id),
+            FOREIGN KEY (userId) REFERENCES users (id)
+        )
+    ''')
+    
+    # User Addresses table (saved delivery locations)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS user_addresses (
+            id SERIAL PRIMARY KEY,
+            userId INTEGER NOT NULL,
+            label TEXT NOT NULL,
+            addressLine1 TEXT NOT NULL,
+            addressLine2 TEXT,
+            city TEXT NOT NULL,
+            state TEXT NOT NULL,
+            pincode TEXT NOT NULL,
+            landmark TEXT,
+            latitude REAL,
+            longitude REAL,
+            isDefault BOOLEAN DEFAULT FALSE,
+            createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (userId) REFERENCES users (id)
         )
     ''')
     

@@ -174,3 +174,151 @@ def update_profile():
         
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+
+@bp.route('/addresses', methods=['GET'], strict_slashes=False)
+@jwt_required()
+def get_addresses():
+    """Get user's saved addresses"""
+    try:
+        user_id = get_jwt_identity()
+        db = get_db()
+        cursor = db.cursor()
+        
+        cursor.execute('''
+            SELECT * FROM user_addresses 
+            WHERE userId = ? 
+            ORDER BY isDefault DESC, createdAt DESC
+        ''', (user_id,))
+        addresses = cursor.fetchall()
+        db.close()
+        
+        return jsonify({
+            'success': True,
+            'addresses': [dict(addr) for addr in addresses]
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@bp.route('/addresses', methods=['POST'], strict_slashes=False)
+@jwt_required()
+def add_address():
+    """Add new address"""
+    try:
+        user_id = get_jwt_identity()
+        data = request.get_json()
+        
+        db = get_db()
+        cursor = db.cursor()
+        
+        # If this is set as default, unset all others
+        if data.get('isDefault'):
+            cursor.execute('UPDATE user_addresses SET isDefault = FALSE WHERE userId = ?', (user_id,))
+        
+        cursor.execute('''
+            INSERT INTO user_addresses (
+                userId, label, addressLine1, addressLine2, city, state, pincode, 
+                landmark, latitude, longitude, isDefault
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            user_id,
+            data.get('label', 'Home'),
+            data['addressLine1'],
+            data.get('addressLine2'),
+            data['city'],
+            data['state'],
+            data['pincode'],
+            data.get('landmark'),
+            data.get('latitude'),
+            data.get('longitude'),
+            1 if data.get('isDefault') else 0
+        ))
+        
+        address_id = cursor.lastrowid
+        db.commit()
+        db.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Address added successfully',
+            'addressId': address_id
+        }), 201
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@bp.route('/addresses/<address_id>', methods=['PUT'], strict_slashes=False)
+@jwt_required()
+def update_address(address_id):
+    """Update an address"""
+    try:
+        user_id = get_jwt_identity()
+        data = request.get_json()
+        
+        db = get_db()
+        cursor = db.cursor()
+        
+        # Verify ownership
+        cursor.execute('SELECT id FROM user_addresses WHERE id = ? AND userId = ?', (address_id, user_id))
+        if not cursor.fetchone():
+            db.close()
+            return jsonify({'success': False, 'message': 'Address not found'}), 404
+        
+        # If setting as default, unset all others
+        if data.get('isDefault'):
+            cursor.execute('UPDATE user_addresses SET isDefault = FALSE WHERE userId = ?', (user_id,))
+        
+        updates = []
+        values = []
+        
+        for field in ['label', 'addressLine1', 'addressLine2', 'city', 'state', 'pincode', 'landmark', 'latitude', 'longitude']:
+            if field in data:
+                updates.append(f'{field} = ?')
+                values.append(data[field])
+        
+        if 'isDefault' in data:
+            updates.append('isDefault = ?')
+            values.append(1 if data['isDefault'] else 0)
+        
+        if updates:
+            updates.append('updatedAt = CURRENT_TIMESTAMP')
+            values.append(address_id)
+            cursor.execute(f"UPDATE user_addresses SET {', '.join(updates)} WHERE id = ?", values)
+            db.commit()
+        
+        db.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Address updated successfully'
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@bp.route('/addresses/<address_id>', methods=['DELETE'], strict_slashes=False)
+@jwt_required()
+def delete_address(address_id):
+    """Delete an address"""
+    try:
+        user_id = get_jwt_identity()
+        
+        db = get_db()
+        cursor = db.cursor()
+        
+        cursor.execute('DELETE FROM user_addresses WHERE id = ? AND userId = ?', (address_id, user_id))
+        
+        if cursor.rowcount == 0:
+            db.close()
+            return jsonify({'success': False, 'message': 'Address not found'}), 404
+        
+        db.commit()
+        db.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Address deleted successfully'
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500

@@ -266,3 +266,137 @@ def update_order_status(order_id):
         
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+
+@bp.route('/<order_id>/comment', methods=['POST'], strict_slashes=False)
+@jwt_required()
+def add_order_comment(order_id):
+    """Add comment and rating to an order (Customer only)"""
+    try:
+        user_id = get_jwt_identity()
+        data = request.get_json()
+        
+        # Verify order belongs to user
+        db = Database.get_db()
+        cursor = db.cursor()
+        cursor.execute('SELECT userId FROM orders WHERE id = ?', (order_id,))
+        order = cursor.fetchone()
+        
+        if not order:
+            db.close()
+            return jsonify({'success': False, 'message': 'Order not found'}), 404
+        
+        if order['userId'] != user_id:
+            db.close()
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+        
+        # Check if comment already exists
+        cursor.execute('SELECT id FROM order_comments WHERE orderId = ? AND userId = ?', (order_id, user_id))
+        existing = cursor.fetchone()
+        
+        if existing:
+            # Update existing comment
+            cursor.execute('''
+                UPDATE order_comments 
+                SET rating = ?, comment = ?, updatedAt = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (data.get('rating'), data.get('comment'), existing['id']))
+            comment_id = existing['id']
+        else:
+            # Create new comment
+            cursor.execute('''
+                INSERT INTO order_comments (orderId, userId, rating, comment)
+                VALUES (?, ?, ?, ?)
+            ''', (order_id, user_id, data.get('rating'), data.get('comment')))
+            comment_id = cursor.lastrowid
+        
+        db.commit()
+        db.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Thank you for your feedback!',
+            'commentId': comment_id
+        }), 201
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@bp.route('/<order_id>/comments', methods=['GET'], strict_slashes=False)
+@jwt_required()
+def get_order_comments(order_id):
+    """Get comments for an order (Admin or order owner)"""
+    try:
+        user_id = get_jwt_identity()
+        
+        db = Database.get_db()
+        cursor = db.cursor()
+        
+        # Check if user is admin or order owner
+        cursor.execute('SELECT userId FROM orders WHERE id = ?', (order_id,))
+        order = cursor.fetchone()
+        
+        if not order:
+            db.close()
+            return jsonify({'success': False, 'message': 'Order not found'}), 404
+        
+        if not is_admin(user_id) and order['userId'] != user_id:
+            db.close()
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+        
+        # Get comments
+        cursor.execute('''
+            SELECT c.*, u.name as userName 
+            FROM order_comments c
+            JOIN users u ON c.userId = u.id
+            WHERE c.orderId = ?
+            ORDER BY c.createdAt DESC
+        ''', (order_id,))
+        comments = cursor.fetchall()
+        db.close()
+        
+        return jsonify({
+            'success': True,
+            'comments': [dict(c) for c in comments]
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@bp.route('/comments/<comment_id>/reply', methods=['PUT'], strict_slashes=False)
+@jwt_required()
+def reply_to_comment(comment_id):
+    """Admin reply to customer comment"""
+    try:
+        user_id = get_jwt_identity()
+        if not is_admin(user_id):
+            return jsonify({'success': False, 'message': 'Admin privileges required'}), 403
+        
+        data = request.get_json()
+        admin_reply = data.get('reply')
+        
+        if not admin_reply:
+            return jsonify({'success': False, 'message': 'Reply text required'}), 400
+        
+        db = Database.get_db()
+        cursor = db.cursor()
+        
+        cursor.execute('''
+            UPDATE order_comments 
+            SET adminReply = ?, repliedAt = CURRENT_TIMESTAMP, updatedAt = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (admin_reply, comment_id))
+        
+        if cursor.rowcount == 0:
+            db.close()
+            return jsonify({'success': False, 'message': 'Comment not found'}), 404
+        
+        db.commit()
+        db.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Reply added successfully'
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
