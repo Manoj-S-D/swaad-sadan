@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SWAAD SADAN{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/" class="nav-brand">🍛 SWAAD SADAN</a>
+            <ul class="nav-menu">
+                <!-- Customer Navigation -->
+                <li class="customer-nav"><a href="/">Home</a></li>
+                <li class="customer-nav"><a href="/menu">Order Food</a></li>
+                <li class="customer-nav"><a href="/events">Events</a></li>
+                <li class="customer-nav"><a href="/catering">Catering</a></li>
+                <li class="customer-nav"><a href="/subscriptions">Meal Plans</a></li>
+                <li class="customer-nav"><a href="/health-box">Health Box</a></li>
+                <li class="customer-nav"><a href="/franchise">Franchise</a></li>
+                <li class="customer-nav cart-badge"><a href="/cart">🛒 <span class="cart-count">0</span></a></li>
+                
+                <!-- Admin Navigation -->
+                <li class="admin-nav" style="display:none"><a href="/admin">Dashboard</a></li>
+                <li class="admin-nav" style="display:none"><a href="/admin/manage-products">Manage Products</a></li>
+                <li class="admin-nav" style="display:none"><a href="/admin/manage-subscriptions">Manage Plans</a></li>
+                <li class="admin-nav" style="display:none"><a href="/admin/manage-catering">Manage Catering</a></li>
+                <li class="admin-nav" style="display:none"><a href="/admin/manage-events">Manage Events</a></li>
+                <li class="admin-nav" style="display:none"><a href="/admin/manage-coupons">Manage Coupons</a></li>
+                <li class="admin-nav" style="display:none"><a href="/admin/manage-orders">Manage Orders</a></li>
+                <li class="admin-nav" style="display:none"><a href="/admin/live-bookings">Live & Upcoming</a></li>
+                
+                <!-- User Menu -->
+                <li class="guest-menu"><a href="/login">Login</a></li>
+                <li class="user-menu" style="display:none">
+                    <span style="color: white; margin-right: 0.5rem;">👤 <span id="user-name"></span></span>
+                </li>
+                <li class="user-menu customer-only" style="display:none"><a href="/profile">Profile</a></li>
+                <li class="user-menu customer-only" style="display:none"><a href="/my-orders">Orders</a></li>
+                <li class="user-menu" style="display:none"><a href="#" onclick="logout()">Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    {% block content %}{% endblock %}
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div>
+                <h3>SWAAD SADAN</h3>
+                <p>Pure vegetarian food service</p>
+            </div>
+            <div>
+                <h3>Contact Us</h3>
+                <p>📞 8296064418</p>
+                <p>✉️ swaadsadancafe@gmail.com</p>
+                <p>💳 UPI: 8296064418@paytm</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2026 SWAAD SADAN. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Razorpay Checkout Script -->
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

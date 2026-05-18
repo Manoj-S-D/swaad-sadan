@@ -1,0 +1,639 @@
+{% extends 'base.html' %}
+{% block title %}Manage Subscriptions - Admin{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="section-heading">
+        <h2>Manage Subscriptions</h2>
+        <p>Manage plans and customer subscription requests</p>
+    </div>
+    
+    <!-- Tabs -->
+    <div class="tabs" style="margin-bottom: 2rem;">
+        <button class="tab-btn active" onclick="switchTab('plans')">Plans</button>
+        <button class="tab-btn" onclick="switchTab('requests')">Subscription Requests</button>
+    </div>
+    
+    <!-- Plans Tab -->
+    <div id="plans-tab" class="tab-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <h3>Subscription Plans</h3>
+            <button class="btn btn-primary" onclick="showAddSubscriptionForm()">+ Add New Plan</button>
+        </div>
+    
+    <div id="subscription-form" style="display: none;" class="card" style="margin-bottom: 2rem;">
+        <h3 id="subscription-form-title">Add New Subscription Plan</h3>
+        <form id="addSubscriptionForm" onsubmit="saveSubscription(event)">
+            <input type="hidden" id="subscriptionId">
+            <div class="grid grid-2">
+                <div class="form-group">
+                    <label>Plan Name *</label>
+                    <input type="text" class="form-control" id="subscriptionName" placeholder="e.g., Weekly Health Plan" required>
+                </div>
+                <div class="form-group">
+                    <label>Price (₹) *</label>
+                    <input type="number" class="form-control" id="subscriptionPrice" required>
+                </div>
+            </div>
+            <div class="grid grid-2">
+                <div class="form-group">
+                    <label>Duration *</label>
+                    <select class="form-control" id="subscriptionDuration" required>
+                        <option value="Weekly">Weekly (7 days)</option>
+                        <option value="Monthly">Monthly (30 days)</option>
+                        <option value="Quarterly">Quarterly (90 days)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Meals Per Day *</label>
+                    <input type="number" class="form-control" id="subscriptionMealsPerDay" min="1" max="3" value="1" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea class="form-control" id="subscriptionDescription" rows="3" placeholder="Describe what's included in this plan..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Features (comma separated)</label>
+                <input type="text" class="form-control" id="subscriptionFeatures" placeholder="e.g., Free delivery, Customizable menu, Freshly prepared">
+            </div>
+            <div class="form-group">
+                <label><input type="checkbox" id="subscriptionActive" checked> Active</label>
+            </div>
+            <button type="submit" class="btn btn-success" id="subscription-submit-btn">Add Plan</button>
+            <button type="button" class="btn btn-secondary" onclick="hideSubscriptionForm()">Cancel</button>
+        </form>
+    </div>
+    
+    <div id="subscriptions-list"></div>
+    </div>
+    
+    <!-- Requests Tab -->
+    <div id="requests-tab" class="tab-content" style="display: none;">
+        <div style="margin-bottom: 2rem;">
+            <h3>Subscription Service Requests</h3>
+            <div class="filter-tabs" style="margin-top: 1rem;">
+                <button class="filter-btn active" onclick="filterRequests('all')">All</button>
+                <button class="filter-btn" onclick="filterRequests('pending')">Pending</button>
+                <button class="filter-btn" onclick="filterRequests('confirmed')">Confirmed</button>
+                <button class="filter-btn" onclick="filterRequests('cancelled')">Cancelled</button>
+            </div>
+        </div>
+        
+        <div id="requests-list"></div>
+    </div>
+</div>
+
+<!-- Request Details Modal -->
+<div id="request-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 800px;">
+        <span class="close" onclick="closeRequestModal()">&times;</span>
+        <div id="request-details"></div>
+    </div>
+</div>
+
+<style>
+.btn-sm {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.9rem;
+}
+.badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+.badge-success {
+    background: #4CAF50;
+    color: white;
+}
+.badge-secondary {
+    background: #999;
+    color: white;
+}
+.badge-pending {
+    background: #FFA500;
+    color: white;
+}
+.badge-confirmed {
+    background: #4CAF50;
+    color: white;
+}
+.badge-cancelled, .badge-rejected {
+    background: #f44336;
+    color: white;
+}
+.tabs {
+    display: flex;
+    gap: 1rem;
+    border-bottom: 2px solid #e0e0e0;
+}
+.tab-btn {
+    padding: 0.75rem 1.5rem;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #666;
+    transition: all 0.3s;
+}
+.tab-btn:hover {
+    color: var(--primary);
+}
+.tab-btn.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+.filter-tabs {
+    display: flex;
+    gap: 0.5rem;
+}
+.filter-btn {
+    padding: 0.5rem 1rem;
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s;
+}
+.filter-btn:hover {
+    background: #e0e0e0;
+}
+.filter-btn.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.5);
+}
+.modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 2rem;
+    border-radius: 8px;
+    width: 90%;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+.close:hover {
+    color: #000;
+}
+.chat-container {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+    max-height: 400px;
+    overflow-y: auto;
+    background: #f9f9f9;
+}
+.message {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    border-radius: 8px;
+}
+.message-admin {
+    background: #e3f2fd;
+    text-align: right;
+}
+.message-customer {
+    background: #fff3e0;
+    text-align: left;
+}
+.message-sender {
+    font-weight: bold;
+    font-size: 0.85rem;
+    color: #666;
+    margin-bottom: 0.25rem;
+}
+.message-text {
+    font-size: 0.95rem;
+}
+.message-time {
+    font-size: 0.75rem;
+    color: #999;
+    margin-top: 0.25rem;
+}
+</style>
+
+<script>
+let currentFilter = 'all';
+let currentRequestId = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadAdminSubscriptions();
+});
+
+function switchTab(tab) {
+    // Update tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    // Show/hide tab content
+    document.getElementById('plans-tab').style.display = tab === 'plans' ? 'block' : 'none';
+    document.getElementById('requests-tab').style.display = tab === 'requests' ? 'block' : 'none';
+    
+    // Load requests if switching to requests tab
+    if (tab === 'requests') {
+        loadRequests();
+    }
+}
+
+async function loadRequests(filter = 'all') {
+    const token = localStorage.getItem('token');
+    currentFilter = filter;
+    
+    try {
+        let url = '/api/requests/all?serviceType=subscriptions';
+        if (filter !== 'all') {
+            url += `&status=${filter}`;
+        }
+        
+        const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        const container = document.getElementById('requests-list');
+        
+        if (data.success && data.requests.length > 0) {
+            container.innerHTML = data.requests.map(req => `
+                <div class="card" style="margin-bottom: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: start; gap: 1rem;">
+                        <div style="flex: 1;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                <h3 style="margin: 0;">${req.requestNumber}</h3>
+                                <span class="badge badge-${req.status}">${req.status.toUpperCase()}</span>
+                            </div>
+                            <p style="margin: 0.25rem 0;"><strong>Customer:</strong> ${req.userName} (${req.userPhone})</p>
+                            <p style="margin: 0.25rem 0;"><strong>Duration:</strong> ${req.requestData.duration} days | <strong>Meal Preference:</strong> ${req.requestData.mealPreference}</p>
+                            <p style="margin: 0.25rem 0;"><strong>Start Date:</strong> ${new Date(req.scheduledDate).toLocaleDateString('en-IN')} at ${req.scheduledTime}</p>
+                            <p style="margin: 0.25rem 0;"><strong>Delivery Address:</strong> ${req.requestData.deliveryAddress || 'Not specified'}</p>
+                            ${req.totalAmount ? `<p style="margin: 0.25rem 0;"><strong>Total Amount:</strong> ₹${req.totalAmount}</p>` : ''}
+                            <p style="margin: 0.25rem 0; font-size: 0.85rem; color: #666;">Requested on ${new Date(req.createdAt).toLocaleString('en-IN')}</p>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                            <button class="btn btn-primary btn-sm" onclick="viewRequestDetails(${req.id})">View Details & Chat</button>
+                            ${req.status === 'pending' ? `
+                                <button class="btn btn-success btn-sm" onclick="updateRequestStatus(${req.id}, 'confirmed')">Confirm</button>
+                                <button class="btn btn-danger btn-sm" onclick="updateRequestStatus(${req.id}, 'rejected')">Reject</button>
+                            ` : ''}
+                            ${req.status === 'confirmed' ? `
+                                <button class="btn btn-danger btn-sm" onclick="updateRequestStatus(${req.id}, 'cancelled')">Cancel</button>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = '<p style="text-align: center; color: #666; padding: 2rem;">No requests found.</p>';
+        }
+    } catch (error) {
+        console.error('Error loading requests:', error);
+        showAlert('Failed to load requests', 'error');
+    }
+}
+
+function filterRequests(status) {
+    // Update active filter button
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    loadRequests(status);
+}
+
+async function viewRequestDetails(requestId) {
+    const token = localStorage.getItem('token');
+    currentRequestId = requestId;
+    
+    try {
+        const response = await fetch(`/api/requests/${requestId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            const req = data.request;
+            document.getElementById('request-details').innerHTML = `
+                <h2>Request ${req.requestNumber}</h2>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+                    <span class="badge badge-${req.status}" style="font-size: 1rem; padding: 0.5rem 1rem;">${req.status.toUpperCase()}</span>
+                    <div>
+                        ${req.status === 'pending' ? `
+                            <button class="btn btn-success" onclick="updateRequestStatus(${req.id}, 'confirmed', true)">Confirm Request</button>
+                            <button class="btn btn-danger" onclick="updateRequestStatus(${req.id}, 'rejected', true)">Reject Request</button>
+                        ` : ''}
+                        ${req.status === 'confirmed' ? `
+                            <button class="btn btn-danger" onclick="updateRequestStatus(${req.id}, 'cancelled', true)">Cancel Request</button>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                <div style="background: #f5f5f5; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                    <h3>Customer Information</h3>
+                    <p><strong>Name:</strong> ${req.userName}</p>
+                    <p><strong>Email:</strong> ${req.userEmail}</p>
+                    <p><strong>Phone:</strong> ${req.userPhone}</p>
+                </div>
+                
+                <div style="background: #f5f5f5; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                    <h3>Subscription Details</h3>
+                    <p><strong>Duration:</strong> ${req.requestData.duration} days</p>
+                    <p><strong>Start Date:</strong> ${new Date(req.scheduledDate).toLocaleDateString('en-IN')}</p>
+                    <p><strong>Delivery Time:</strong> ${req.scheduledTime}</p>
+                    <p><strong>Delivery Address:</strong> ${req.requestData.deliveryAddress || 'Not specified'}</p>
+                    <p><strong>Meal Preference:</strong> ${req.requestData.mealPreference}</p>
+                    ${req.totalAmount ? `<p><strong>Total Amount:</strong> ₹${req.totalAmount}</p>` : ''}
+                </div>
+                
+                ${req.requestData.specialInstructions ? `
+                    <div style="background: #f5f5f5; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                        <h3>Special Instructions</h3>
+                        <p>${req.requestData.specialInstructions}</p>
+                    </div>
+                ` : ''}
+                
+                <div style="margin-top: 2rem;">
+                    <h3>Communication</h3>
+                    <div class="chat-container" id="chat-messages">
+                        ${req.messages && req.messages.length > 0 ? req.messages.map(msg => `
+                            <div class="message message-${msg.senderRole}">
+                                <div class="message-sender">${msg.senderName} (${msg.senderRole})</div>
+                                <div class="message-text">${msg.message}</div>
+                                <div class="message-time">${new Date(msg.createdAt).toLocaleString('en-IN')}</div>
+                            </div>
+                        `).join('') : '<p style="text-align: center; color: #999;">No messages yet</p>'}
+                    </div>
+                    
+                    <form onsubmit="sendMessage(event)" style="margin-top: 1rem;">
+                        <div class="form-group">
+                            <textarea class="form-control" id="message-input" rows="3" placeholder="Type your message to the customer..." required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Send Message</button>
+                    </form>
+                </div>
+            `;
+            
+            document.getElementById('request-modal').style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error loading request details:', error);
+        showAlert('Failed to load request details', 'error');
+    }
+}
+
+async function sendMessage(e) {
+    e.preventDefault();
+    const token = localStorage.getItem('token');
+    const message = document.getElementById('message-input').value.trim();
+    
+    if (!message) return;
+    
+    try {
+        const response = await fetch(`/api/requests/${currentRequestId}/messages`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ message })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('message-input').value = '';
+            viewRequestDetails(currentRequestId);
+        } else {
+            showAlert(data.message || 'Failed to send message', 'error');
+        }
+    } catch (error) {
+        console.error('Error sending message:', error);
+        showAlert('Failed to send message', 'error');
+    }
+}
+
+async function updateRequestStatus(requestId, status, closeModal = false) {
+    const confirmMessages = {
+        'confirmed': 'Are you sure you want to confirm this subscription?',
+        'rejected': 'Are you sure you want to reject this subscription?',
+        'cancelled': 'Are you sure you want to cancel this subscription?'
+    };
+    
+    if (!confirm(confirmMessages[status])) return;
+    
+    const token = localStorage.getItem('token');
+    
+    try {
+        const response = await fetch(`/api/requests/${requestId}/status`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ status })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert(data.message, 'success');
+            loadRequests(currentFilter);
+            if (closeModal) {
+                closeRequestModal();
+            }
+        } else {
+            showAlert(data.message || 'Failed to update status', 'error');
+        }
+    } catch (error) {
+        console.error('Error updating request status:', error);
+        showAlert('Failed to update request status', 'error');
+    }
+}
+
+function closeRequestModal() {
+    document.getElementById('request-modal').style.display = 'none';
+    currentRequestId = null;
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('request-modal');
+    if (event.target == modal) {
+        closeRequestModal();
+    }
+}
+
+// Original subscription plan functions below...
+
+async function loadAdminSubscriptions() {
+    const token = localStorage.getItem('token');
+    
+    try {
+        const response = await fetch('/api/subscriptions/plans/all', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        const container = document.getElementById('subscriptions-list');
+        
+        if (data.success && data.plans.length > 0) {
+            container.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Plan Name</th>
+                            <th>Duration</th>
+                            <th>Price</th>
+                            <th>Meals/Day</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.plans.map(plan => `
+                            <tr>
+                                <td><strong>${plan.name}</strong></td>
+                                <td>${plan.duration}</td>
+                                <td>₹${plan.price}</td>
+                                <td>${plan.mealsPerDay}</td>
+                                <td><span class="badge badge-${plan.isActive ? 'success' : 'secondary'}">${plan.isActive ? 'Active' : 'Inactive'}</span></td>
+                                <td>
+                                    <button class="btn btn-primary btn-sm" onclick='editSubscription(${JSON.stringify(plan).replace(/'/g, "&#39;")})'>Edit</button>
+                                    <button class="btn btn-danger btn-sm" onclick="deleteSubscription(${plan.id})">Delete</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        } else {
+            container.innerHTML = '<p>No subscription plans yet. Add your first plan!</p>';
+        }
+    } catch (error) {
+        showAlert('Failed to load subscriptions', 'error');
+    }
+}
+
+function showAddSubscriptionForm() {
+    document.getElementById('subscription-form').style.display = 'block';
+    document.getElementById('subscription-form-title').textContent = 'Add New Subscription Plan';
+    document.getElementById('subscription-submit-btn').textContent = 'Add Plan';
+    document.getElementById('addSubscriptionForm').reset();
+    document.getElementById('subscriptionId').value = '';
+    document.getElementById('subscriptionActive').checked = true;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function hideSubscriptionForm() {
+    document.getElementById('subscription-form').style.display = 'none';
+    document.getElementById('addSubscriptionForm').reset();
+}
+
+function editSubscription(plan) {
+    document.getElementById('subscription-form').style.display = 'block';
+    document.getElementById('subscription-form-title').textContent = 'Edit Subscription Plan';
+    document.getElementById('subscription-submit-btn').textContent = 'Update Plan';
+    document.getElementById('subscriptionId').value = plan.id;
+    document.getElementById('subscriptionName').value = plan.name;
+    document.getElementById('subscriptionPrice').value = plan.price;
+    document.getElementById('subscriptionDuration').value = plan.duration;
+    document.getElementById('subscriptionMealsPerDay').value = plan.mealsPerDay;
+    document.getElementById('subscriptionDescription').value = plan.description || '';
+    document.getElementById('subscriptionFeatures').value = (plan.features || []).join(', ');
+    document.getElementById('subscriptionActive').checked = plan.isActive === 1;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function saveSubscription(e) {
+    e.preventDefault();
+    
+    const token = localStorage.getItem('token');
+    const subscriptionId = document.getElementById('subscriptionId').value;
+    const isEditing = subscriptionId !== '';
+    
+    const features = document.getElementById('subscriptionFeatures').value
+        .split(',')
+        .map(f => f.trim())
+        .filter(f => f);
+    
+    const planData = {
+        name: document.getElementById('subscriptionName').value,
+        description: document.getElementById('subscriptionDescription').value,
+        duration: document.getElementById('subscriptionDuration').value,
+        price: parseFloat(document.getElementById('subscriptionPrice').value),
+        mealsPerDay: parseInt(document.getElementById('subscriptionMealsPerDay').value),
+        features: features,
+        isActive: document.getElementById('subscriptionActive').checked ? 1 : 0
+    };
+    
+    try {
+        const url = isEditing 
+            ? `/api/subscriptions/plans/${subscriptionId}`
+            : '/api/subscriptions/plans';
+        
+        const response = await fetch(url, {
+            method: isEditing ? 'PUT' : 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(planData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert(isEditing ? 'Plan updated!' : 'Plan created!', 'success');
+            hideSubscriptionForm();
+            loadAdminSubscriptions();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (error) {
+        showAlert('Failed to save subscription plan', 'error');
+    }
+}
+
+async function deleteSubscription(id) {
+    if (!confirm('Are you sure you want to delete this subscription plan?')) return;
+    
+    const token = localStorage.getItem('token');
+    
+    try {
+        const response = await fetch(`/api/subscriptions/plans/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert('Subscription plan deleted!', 'success');
+            loadAdminSubscriptions();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (error) {
+        showAlert('Failed to delete subscription plan', 'error');
+    }
+}
+</script>
+{% endblock %}

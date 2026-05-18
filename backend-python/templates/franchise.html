@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% block title %}Franchise Opportunity - SWAAD SADAN{% endblock %}
+{% block content %}
+<section class="hero" style="padding: 3rem 20px;">
+    <h1>Franchise Opportunity 🏢</h1>
+    <p>Partner with SWAAD SADAN and grow together</p>
+</section>
+
+<div class="container">
+    <div class="grid grid-3" style="margin-bottom: 3rem;">
+        <div class="card">
+            <div class="card-icon">💰</div>
+            <h3>Low Investment</h3>
+            <p>Start your business with minimal capital investment and proven business model</p>
+        </div>
+        <div class="card">
+            <div class="card-icon">📈</div>
+            <h3>High Returns</h3>
+            <p>Profitable food business with established brand and customer base</p>
+        </div>
+        <div class="card">
+            <div class="card-icon">🤝</div>
+            <h3>Full Support</h3>
+            <p>Complete training, marketing support, and ongoing assistance</p>
+        </div>
+    </div>
+
+    <div class="card" style="max-width: 800px; margin: 0 auto;">
+        <h2 style="text-align: center; color: var(--primary); margin-bottom: 2rem;">Franchise Application</h2>
+        
+        <form id="franchiseForm" onsubmit="submitFranchiseApplication(event)">
+            <div class="grid grid-2" style="gap: 1.5rem;">
+                <div class="form-group">
+                    <label>Full Name *</label>
+                    <input type="text" class="form-control" id="name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Email *</label>
+                    <input type="email" class="form-control" id="email" required>
+                </div>
+            </div>
+            
+            <div class="grid grid-2" style="gap: 1.5rem;">
+                <div class="form-group">
+                    <label>Phone Number *</label>
+                    <input type="tel" class="form-control" id="phone" pattern="[0-9]{10}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>City *</label>
+                    <input type="text" class="form-control" id="city" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Preferred Location/Area *</label>
+                <input type="text" class="form-control" id="location" placeholder="e.g., MG Road, Jayanagar" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Investment Capacity *</label>
+                <select class="form-control" id="investment" required>
+                    <option value="">Select range</option>
+                    <option value="5-10L">₹5-10 Lakhs</option>
+                    <option value="10-20L">₹10-20 Lakhs</option>
+                    <option value="20-50L">₹20-50 Lakhs</option>
+                    <option value="50L+">₹50 Lakhs+</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Business Experience</label>
+                <select class="form-control" id="experience">
+                    <option value="">Select experience</option>
+                    <option value="none">No business experience</option>
+                    <option value="food">Food industry experience</option>
+                    <option value="retail">Retail experience</option>
+                    <option value="other">Other business experience</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Why do you want to partner with SWAAD SADAN?</label>
+                <textarea class="form-control" id="reason" placeholder="Tell us about your motivation and goals"></textarea>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Submit Application</button>
+        </form>
+    </div>
+
+    <div class="card" style="margin-top: 4rem; background: linear-gradient(135deg, #FFF3E0, #FFE0B2);">
+        <h3 style="text-align: center; color: var(--primary); margin-bottom: 2rem;">What You Get</h3>
+        <div class="grid grid-2">
+            <ul style="font-size: 1.1rem;">
+                <li>✅ Established brand name</li>
+                <li>✅ Proven recipes & menu</li>
+                <li>✅ Complete staff training</li>
+                <li>✅ Marketing materials</li>
+            </ul>
+            <ul style="font-size: 1.1rem;">
+                <li>✅ Operational support</li>
+                <li>✅ Supply chain assistance</li>
+                <li>✅ Quality control systems</li>
+                <li>✅ Ongoing consultation</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script>
+async function submitFranchiseApplication(e) {
+    e.preventDefault();
+    
+    const formData = {
+        name: document.getElementById('name').value,
+        email: document.getElementById('email').value,
+        phone: document.getElementById('phone').value,
+        city: document.getElementById('city').value,
+        location: document.getElementById('location').value,
+        investment: document.getElementById('investment').value,
+        experience: document.getElementById('experience').value,
+        reason: document.getElementById('reason').value
+    };
+    
+    showAlert('Franchise application submitted successfully! Our team will contact you within 2-3 business days.', 'success');
+    document.getElementById('franchiseForm').reset();
+    
+    console.log('Franchise Application:', formData);
+    // Here you would send this to your backend API
+}
+</script>
+{% endblock %}

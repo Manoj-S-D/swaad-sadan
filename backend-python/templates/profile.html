@@ -1,0 +1,322 @@
+{% extends 'base.html' %}
+{% block title %}My Profile - SWAAD SADAN{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="section-heading">
+        <h2>My Profile</h2>
+        <p>Manage your account details</p>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+        <div class="card">
+            <h3>Personal Information</h3>
+            <form id="profileForm" onsubmit="updateProfile(event)">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" class="form-control" id="profileName" required>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" class="form-control" id="profileEmail" readonly style="background: #F5F5F5;">
+                </div>
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input type="tel" class="form-control" id="profilePhone" pattern="[0-9]{10}" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Update Profile</button>
+            </form>
+        </div>
+        
+        <div class="card">
+            <h3>Loyalty Points</h3>
+            <div style="text-align: center; padding: 2rem;">
+                <div style="font-size: 3rem; color: var(--primary); font-weight: bold;" id="pointsBalance">0</div>
+                <p style="color: #666; margin-top: 1rem;">Available Points</p>
+                <p style="font-size: 0.9rem; color: #999;">1 Point = ₹1</p>
+            </div>
+            <div style="border-top: 2px solid #EEE; padding-top: 1rem; margin-top: 1rem;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span>Total Earned:</span>
+                    <strong id="totalEarned">0</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Total Redeemed:</span>
+                    <strong id="totalRedeemed">0</strong>
+                </div>
+            </div>
+            <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">
+                💡 Earn 5% cashback as points on every completed order!
+            </p>
+        </div>
+    </div>
+    
+    <div class="card" style="margin-top: 2rem;">
+        <h3>Order Statistics</h3>
+        <div class="grid grid-3">
+            <div style="text-align: center; padding: 1.5rem;">
+                <div style="font-size: 2rem; color: var(--primary); font-weight: bold;" id="totalOrders">0</div>
+                <p style="color: #666; margin-top: 0.5rem;">Total Orders</p>
+            </div>
+            <div style="text-align: center; padding: 1.5rem;">
+                <div style="font-size: 2rem; color: var(--success); font-weight: bold;" id="completedOrders">0</div>
+                <p style="color: #666; margin-top: 0.5rem;">Completed</p>
+            </div>
+            <div style="text-align: center; padding: 1.5rem;">
+                <div style="font-size: 2rem; color: var(--primary); font-weight: bold;" id="totalSpent">₹0</div>
+                <p style="color: #666; margin-top: 0.5rem;">Total Spent</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card" style="margin-top: 2rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h3>My Addresses</h3>
+            <button class="btn btn-primary" onclick="showAddAddressForm()">+ Add Address</button>
+        </div>
+        
+        <div id="addAddressForm" style="display: none; margin-bottom: 1.5rem; padding: 1.5rem; background: #F9F9F9; border-radius: 8px;">
+            <h4>Add New Address</h4>
+            <form onsubmit="addAddress(event)">
+                <div class="form-group">
+                    <label>Address Label (e.g., Home, Office)</label>
+                    <input type="text" class="form-control" id="addressLabel" required>
+                </div>
+                <div class="form-group">
+                    <label>Full Address</label>
+                    <textarea class="form-control" id="addressText" rows="3" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-success">Save Address</button>
+                <button type="button" class="btn btn-secondary" onclick="hideAddAddressForm()">Cancel</button>
+            </form>
+        </div>
+        
+        <div id="addressesList"></div>
+    </div>
+</div>
+
+<style>
+.address-card {
+    padding: 1rem;
+    border: 2px solid #EEE;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+.address-card:hover {
+    border-color: var(--primary);
+}
+.address-label {
+    font-weight: bold;
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+}
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let userAddresses = [];
+
+async function loadUserProfile() {
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user'));
+    
+    if (!user || !token) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    // Load user details
+    document.getElementById('profileName').value = user.name;
+    document.getElementById('profileEmail').value = user.email;
+    document.getElementById('profilePhone').value = user.phone;
+    
+    // Load loyalty points
+    try {
+        const pointsResponse = await fetch('/api/loyalty/my-points', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const pointsData = await pointsResponse.json();
+        
+        if (pointsData.success) {
+            document.getElementById('pointsBalance').textContent = pointsData.points.points || 0;
+            document.getElementById('totalEarned').textContent = pointsData.points.totalEarned || 0;
+            document.getElementById('totalRedeemed').textContent = pointsData.points.totalRedeemed || 0;
+        }
+    } catch (error) {
+        console.error('Failed to load points:', error);
+    }
+    
+    // Load order statistics
+    try {
+        const ordersResponse = await fetch('/api/orders/my-orders', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const ordersData = await ordersResponse.json();
+        
+        if (ordersData.success) {
+            const orders = ordersData.orders;
+            const completedOrders = orders.filter(o => o.status === 'completed');
+            const totalSpent = completedOrders.reduce((sum, o) => {
+                const pricing = typeof o.pricing === 'string' ? JSON.parse(o.pricing) : o.pricing;
+                return sum + pricing.total;
+            }, 0);
+            
+            document.getElementById('totalOrders').textContent = orders.length;
+            document.getElementById('completedOrders').textContent = completedOrders.length;
+            document.getElementById('totalSpent').textContent = `₹${totalSpent}`;
+        }
+    } catch (error) {
+        console.error('Failed to load orders:', error);
+    }
+    
+    // Load addresses (if user has addresses field)
+    userAddresses = user.addresses || [];
+    renderAddresses();
+}
+
+function renderAddresses() {
+    const container = document.getElementById('addressesList');
+    
+    if (userAddresses.length === 0) {
+        container.innerHTML = '<p style="color: #999; text-align: center; padding: 2rem;">No addresses saved yet.</p>';
+        return;
+    }
+    
+    container.innerHTML = userAddresses.map((addr, index) => `
+        <div class="address-card">
+            <div>
+                <div class="address-label">${addr.label}</div>
+                <p style="margin: 0; color: #666;">${addr.address}</p>
+            </div>
+            <button class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem;" onclick="removeAddress(${index})">Remove</button>
+        </div>
+    `).join('');
+}
+
+async function updateProfile(e) {
+    e.preventDefault();
+    const token = localStorage.getItem('token');
+    
+    const profileData = {
+        name: document.getElementById('profileName').value,
+        phone: document.getElementById('profilePhone').value
+    };
+    
+    try {
+        const response = await fetch('/api/auth/update-profile', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(profileData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Update local storage
+            const user = JSON.parse(localStorage.getItem('user'));
+            user.name = profileData.name;
+            user.phone = profileData.phone;
+            localStorage.setItem('user', JSON.stringify(user));
+            
+            showAlert('Profile updated successfully!', 'success');
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (error) {
+        showAlert('Failed to update profile', 'error');
+    }
+}
+
+function showAddAddressForm() {
+    document.getElementById('addAddressForm').style.display = 'block';
+}
+
+function hideAddAddressForm() {
+    document.getElementById('addAddressForm').style.display = 'none';
+    document.getElementById('addressLabel').value = '';
+    document.getElementById('addressText').value = '';
+}
+
+async function addAddress(e) {
+    e.preventDefault();
+    const token = localStorage.getItem('token');
+    
+    const newAddress = {
+        label: document.getElementById('addressLabel').value,
+        address: document.getElementById('addressText').value
+    };
+    
+    userAddresses.push(newAddress);
+    
+    try {
+        const response = await fetch('/api/auth/update-profile', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ addresses: userAddresses })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Update local storage
+            const user = JSON.parse(localStorage.getItem('user'));
+            user.addresses = userAddresses;
+            localStorage.setItem('user', JSON.stringify(user));
+            
+            showAlert('Address added successfully!', 'success');
+            hideAddAddressForm();
+            renderAddresses();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (error) {
+        showAlert('Failed to add address', 'error');
+    }
+}
+
+async function removeAddress(index) {
+    if (!confirm('Remove this address?')) return;
+    
+    const token = localStorage.getItem('token');
+    userAddresses.splice(index, 1);
+    
+    try {
+        const response = await fetch('/api/auth/update-profile', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ addresses: userAddresses })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const user = JSON.parse(localStorage.getItem('user'));
+            user.addresses = userAddresses;
+            localStorage.setItem('user', JSON.stringify(user));
+            
+            showAlert('Address removed successfully!', 'success');
+            renderAddresses();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (error) {
+        showAlert('Failed to remove address', 'error');
+    }
+}
+
+loadUserProfile();
+</script>
+{% endblock %}

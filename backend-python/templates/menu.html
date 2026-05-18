@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block title %}Menu - SWAAD SADAN{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="section-heading">
+        <h2>Our Menu</h2>
+        <p>Explore our delicious pure vegetarian dishes</p>
+    </div>
+    
+    <!-- Filters -->
+    <div style="display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap;">
+        <button class="btn btn-primary" onclick="loadProducts()">All</button>
+        <button class="btn btn-secondary" onclick="loadProducts({isVeg: true})">Veg Only</button>
+        <button class="btn btn-secondary" onclick="loadProducts({isHealthBox: true})">Health Box</button>
+    </div>
+    
+    <div id="products-container" class="grid grid-3"></div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadProducts(filters = {}) {
+        // By default, only show in-stock (available) products
+        if (!('isAvailable' in filters)) {
+            filters.isAvailable = 1;
+        }
+        
+        const params = new URLSearchParams(filters);
+        const response = await fetch(`/api/products?${params}`);
+        const data = await response.json();
+        
+        const container = document.getElementById('products-container');
+        if (data.success && data.products.length > 0) {
+            container.innerHTML = data.products.map(p => {
+                // Show out of stock badge if not available
+                const outOfStockBadge = p.isAvailable === 0 
+                    ? '<span class="product-badge" style="background: #DC3545; color: white;">❌ Out of Stock</span>' 
+                    : '';
+                const addToCartBtn = p.isAvailable === 1 
+                    ? `<button class="btn btn-primary" style="margin-top: 1rem; width: 100%;" onclick='addToCart(${JSON.stringify(p)})'>Add to Cart</button>`
+                    : '<button class="btn btn-secondary" style="margin-top: 1rem; width: 100%;" disabled>Out of Stock</button>';
+                
+                return `
+                    <div class="product-card" style="${p.isAvailable === 0 ? 'opacity: 0.6;' : ''}">
+                        <div class="product-img" style="background: linear-gradient(135deg, #FFE0B2, #FFAB91); display: flex; align-items: center; justify-content: center; font-size: 4rem;">
+                            ${p.isVeg ? '🥗' : '🍱'}
+                        </div>
+                        <div class="product-info">
+                            <h3 class="product-name">${p.name}</h3>
+                            <p class="product-price">₹${p.price}</p>
+                            <div style="margin: 0.5rem 0;">
+                                ${outOfStockBadge}
+                                ${p.isVeg ? '<span class="product-badge badge-veg">🌿 Pure Veg</span>' : ''}
+                                ${p.isHealthBox ? '<span class="product-badge badge-health">💪 Health Box</span>' : ''}
+                            </div>
+                            <p style="color: #666; font-size: 0.9rem;">${p.description || 'Delicious homemade food'}</p>
+                            ${addToCartBtn}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            container.innerHTML = '<p style="text-align: center; padding: 3rem;">No products available. Please check back later!</p>';
+        }
+    }
+    
+    loadProducts();
+</script>
+{% endblock %}

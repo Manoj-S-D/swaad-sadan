@@ -1,0 +1,448 @@
+{% extends 'base.html' %}
+{% block title %}Request Details - SWAAD SADAN{% endblock %}
+{% block content %}
+<div class="container" style="max-width: 900px; margin: 2rem auto;">
+    <div id="request-content"></div>
+</div>
+
+<style>
+.request-header {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: white;
+    padding: 2rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.request-header h1 {
+    margin: 0 0 0.5rem 0;
+    font-size: 2rem;
+}
+
+.status-badge {
+    padding: 0.5rem 1.5rem;
+    border-radius: 25px;
+    font-weight: 600;
+    font-size: 1rem;
+    display: inline-block;
+    margin-top: 1rem;
+}
+
+.status-pending {
+    background: #FFA500;
+    color: white;
+}
+
+.status-confirmed {
+    background: #4CAF50;
+    color: white;
+}
+
+.status-cancelled, .status-rejected {
+    background: #f44336;
+    color: white;
+}
+
+.info-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.info-card h3 {
+    color: var(--primary);
+    margin-top: 0;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--secondary);
+}
+
+.info-row {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.info-label {
+    font-weight: 600;
+    color: #666;
+}
+
+.info-value {
+    color: #333;
+}
+
+.chat-section {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.chat-header {
+    color: var(--primary);
+    margin-top: 0;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--secondary);
+}
+
+.chat-container {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    max-height: 400px;
+    min-height: 200px;
+    overflow-y: auto;
+    background: #f9f9f9;
+}
+
+.message {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    border-radius: 8px;
+    max-width: 80%;
+}
+
+.message-admin {
+    background: #e3f2fd;
+    margin-left: 0;
+    margin-right: auto;
+}
+
+.message-customer {
+    background: #fff3e0;
+    margin-left: auto;
+    margin-right: 0;
+    text-align: right;
+}
+
+.message-sender {
+    font-weight: bold;
+    font-size: 0.85rem;
+    color: #666;
+    margin-bottom: 0.25rem;
+}
+
+.message-text {
+    font-size: 0.95rem;
+    margin-bottom: 0.25rem;
+}
+
+.message-time {
+    font-size: 0.75rem;
+    color: #999;
+}
+
+.chat-input-form {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.chat-input-form textarea {
+    flex: 1;
+    padding: 0.75rem;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    resize: vertical;
+    min-height: 60px;
+    font-family: inherit;
+}
+
+.chat-input-form textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.chat-input-form button {
+    align-self: flex-end;
+}
+
+.empty-chat {
+    text-align: center;
+    padding: 2rem;
+    color: #999;
+}
+
+.back-btn {
+    display: inline-block;
+    margin-bottom: 1rem;
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.back-btn:hover {
+    text-decoration: underline;
+}
+</style>
+
+<script>
+let requestId = null;
+let currentUser = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+    // Get request ID from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    requestId = urlParams.get('id');
+    
+    if (!requestId) {
+        document.getElementById('request-content').innerHTML = `
+            <div class="info-card">
+                <h3>Error</h3>
+                <p>No request ID provided.</p>
+                <a href="/" class="btn btn-primary">Go to Home</a>
+            </div>
+        `;
+        return;
+    }
+    
+    // Check if user is logged in
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
+    
+    if (!token || !user) {
+        showAlert('Please login to view request details', 'error');
+        setTimeout(() => window.location.href = '/login', 1500);
+        return;
+    }
+    
+    currentUser = JSON.parse(user);
+    await loadRequestDetails();
+    
+    // Auto-refresh messages every 10 seconds
+    setInterval(loadRequestDetails, 10000);
+});
+
+async function loadRequestDetails() {
+    const token = localStorage.getItem('token');
+    
+    try {
+        const response = await fetch(`/api/requests/${requestId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            displayRequestDetails(data.request);
+        } else {
+            document.getElementById('request-content').innerHTML = `
+                <div class="info-card">
+                    <h3>Error</h3>
+                    <p>${data.message || 'Failed to load request details'}</p>
+                    <a href="/" class="btn btn-primary">Go to Home</a>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading request details:', error);
+        showAlert('Failed to load request details', 'error');
+    }
+}
+
+function displayRequestDetails(req) {
+    const serviceTypeLabel = {
+        'catering': 'Catering',
+        'events': 'Event',
+        'subscriptions': 'Subscription'
+    }[req.serviceType] || 'Service';
+    
+    // Determine back link based on service type
+    const backLinks = {
+        'catering': '/catering',
+        'events': '/events',
+        'subscriptions': '/subscriptions'
+    };
+    
+    let detailsHTML = '';
+    
+    if (req.serviceType === 'catering') {
+        detailsHTML = `
+            <div class="info-row">
+                <div class="info-label">Event Type:</div>
+                <div class="info-value">${req.requestData.eventType}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Number of Guests:</div>
+                <div class="info-value">${req.requestData.guests}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Event Date:</div>
+                <div class="info-value">${new Date(req.scheduledDate).toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Event Time:</div>
+                <div class="info-value">${req.scheduledTime}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Venue:</div>
+                <div class="info-value">${req.requestData.venue || 'Not specified'}</div>
+            </div>
+            ${req.requestData.menuPreferences ? `
+                <div class="info-row">
+                    <div class="info-label">Menu Preferences:</div>
+                    <div class="info-value">${req.requestData.menuPreferences}</div>
+                </div>
+            ` : ''}
+            ${req.requestData.specialRequirements ? `
+                <div class="info-row">
+                    <div class="info-label">Special Requirements:</div>
+                    <div class="info-value">${req.requestData.specialRequirements}</div>
+                </div>
+            ` : ''}
+        `;
+    } else if (req.serviceType === 'events') {
+        detailsHTML = `
+            <div class="info-row">
+                <div class="info-label">Event Type:</div>
+                <div class="info-value">${req.requestData.eventType}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Capacity:</div>
+                <div class="info-value">${req.requestData.capacity} people</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Event Date:</div>
+                <div class="info-value">${new Date(req.scheduledDate).toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Event Time:</div>
+                <div class="info-value">${req.scheduledTime}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Venue:</div>
+                <div class="info-value">${req.requestData.venue || 'Not specified'}</div>
+            </div>
+            ${req.requestData.specialInstructions ? `
+                <div class="info-row">
+                    <div class="info-label">Special Instructions:</div>
+                    <div class="info-value">${req.requestData.specialInstructions}</div>
+                </div>
+            ` : ''}
+        `;
+    } else if (req.serviceType === 'subscriptions') {
+        detailsHTML = `
+            <div class="info-row">
+                <div class="info-label">Duration:</div>
+                <div class="info-value">${req.requestData.duration} days</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Start Date:</div>
+                <div class="info-value">${new Date(req.scheduledDate).toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Delivery Time:</div>
+                <div class="info-value">${req.scheduledTime}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Delivery Address:</div>
+                <div class="info-value">${req.requestData.deliveryAddress || 'Not specified'}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Meal Preference:</div>
+                <div class="info-value">${req.requestData.mealPreference}</div>
+            </div>
+            ${req.requestData.specialInstructions ? `
+                <div class="info-row">
+                    <div class="info-label">Special Instructions:</div>
+                    <div class="info-value">${req.requestData.specialInstructions}</div>
+                </div>
+            ` : ''}
+        `;
+    }
+    
+    document.getElementById('request-content').innerHTML = `
+        <a href="${backLinks[req.serviceType] || '/'}" class="back-btn">← Back to ${serviceTypeLabel} Page</a>
+        
+        <div class="request-header">
+            <h1>${req.requestNumber}</h1>
+            <p style="margin: 0.5rem 0; font-size: 1.1rem;">${serviceTypeLabel} Request</p>
+            <span class="status-badge status-${req.status}">${req.status.toUpperCase()}</span>
+        </div>
+        
+        <div class="info-card">
+            <h3>${serviceTypeLabel} Details</h3>
+            ${detailsHTML}
+            ${req.totalAmount ? `
+                <div class="info-row">
+                    <div class="info-label">Total Amount:</div>
+                    <div class="info-value" style="font-size: 1.2rem; font-weight: bold; color: var(--primary);">₹${req.totalAmount}</div>
+                </div>
+            ` : ''}
+            <div class="info-row">
+                <div class="info-label">Requested On:</div>
+                <div class="info-value">${new Date(req.createdAt).toLocaleString('en-IN')}</div>
+            </div>
+        </div>
+        
+        <div class="chat-section">
+            <h3 class="chat-header">💬 Communication with SWAAD SADAN</h3>
+            <div class="chat-container" id="chat-messages">
+                ${req.messages && req.messages.length > 0 ? 
+                    req.messages.map(msg => `
+                        <div class="message message-${msg.senderRole}">
+                            <div class="message-sender">${msg.senderName}</div>
+                            <div class="message-text">${msg.message}</div>
+                            <div class="message-time">${new Date(msg.createdAt).toLocaleString('en-IN')}</div>
+                        </div>
+                    `).join('') 
+                    : '<div class="empty-chat">No messages yet. Send a message to start the conversation.</div>'
+                }
+            </div>
+            
+            <form class="chat-input-form" onsubmit="sendMessage(event)">
+                <textarea 
+                    id="message-input" 
+                    placeholder="Type your message here..."
+                    required
+                ></textarea>
+                <button type="submit" class="btn btn-primary">Send</button>
+            </form>
+        </div>
+    `;
+    
+    // Scroll chat to bottom
+    const chatContainer = document.getElementById('chat-messages');
+    if (chatContainer) {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+}
+
+async function sendMessage(e) {
+    e.preventDefault();
+    const token = localStorage.getItem('token');
+    const message = document.getElementById('message-input').value.trim();
+    
+    if (!message) return;
+    
+    try {
+        const response = await fetch(`/api/requests/${requestId}/messages`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ message })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('message-input').value = '';
+            await loadRequestDetails();
+            showAlert('Message sent!', 'success');
+        } else {
+            showAlert(data.message || 'Failed to send message', 'error');
+        }
+    } catch (error) {
+        console.error('Error sending message:', error);
+        showAlert('Failed to send message. Please try again.', 'error');
+    }
+}
+</script>
+{% endblock %}

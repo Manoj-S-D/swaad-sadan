@@ -1,0 +1,333 @@
+{% extends 'base.html' %}
+{% block title %}Manage Products - Admin{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="section-heading">
+        <h2>Manage Products</h2>
+        <p>Add, edit, and manage your menu items</p>
+    </div>
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <h3>Product Catalog</h3>
+        <button class="btn btn-primary" onclick="showAddProductForm()">+ Add New Product</button>
+    </div>
+    
+    <div id="product-form" style="display: none;" class="card" style="margin-bottom: 2rem;">
+        <h3 id="product-form-title">Add New Product</h3>
+        <form id="addProductForm" onsubmit="saveProduct(event)">
+            <input type="hidden" id="productId">
+            <div class="grid grid-2">
+                <div class="form-group">
+                    <label>Product Name *</label>
+                    <input type="text" class="form-control" id="productName" required>
+                </div>
+                <div class="form-group">
+                    <label>Price (₹) *</label>
+                    <input type="number" class="form-control" id="productPrice" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Image URL</label>
+                <input type="text" class="form-control" id="productImage" placeholder="https://example.com/image.jpg">
+                <small style="color: #666;">Leave empty to use emoji placeholder</small>
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea class="form-control" id="productDescription"></textarea>
+            </div>
+            <div class="grid grid-3">
+                <div class="form-group">
+                    <label>Category</label>
+                    <select class="form-control" id="productCategory">
+                        <option>Main Course</option>
+                        <option>Snacks</option>
+                        <option>Desserts</option>
+                        <option>Beverages</option>
+                        <option>Bread</option>
+                        <option>Rice Items</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="productVeg" checked> Vegetarian</label>
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="productHealth"> Health Box</label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label><input type="checkbox" id="productAvailable" checked> Available (In Stock)</label>
+            </div>
+            <button type="submit" class="btn btn-success" id="product-submit-btn">Add Product</button>
+            <button type="button" class="btn btn-secondary" onclick="hideProductForm()">Cancel</button>
+        </form>
+    </div>
+    
+    <h3 style="margin-top: 2rem; color: var(--success);">📺 Live Menu (In Stock)</h3>
+    <div id="live-products-list" style="margin-bottom: 2rem;"></div>
+    
+    <h3 style="margin-top: 2rem; color: #666;">📦 Catalog (Out of Stock)</h3>
+    <div id="catalog-products-list"></div>
+</div>
+
+<style>
+.btn-sm {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.9rem;
+}
+</style>
+
+<script>
+// Load products on page load
+document.addEventListener('DOMContentLoaded', () => {
+    loadAdminProducts();
+});
+
+async function loadAdminProducts() {
+    // Fetch all products including catalog items (isAvailable=0)
+    const response = await fetch('/api/products?includeAll=true');
+    const data = await response.json();
+    
+    if (data.success && data.products.length > 0) {
+        // Separate products into live (in stock) and catalog (out of stock)
+        const liveProducts = data.products.filter(p => p.isAvailable === 1);
+        const catalogProducts = data.products.filter(p => p.isAvailable === 0);
+        
+        // Render Live Menu (In Stock)
+        const liveContainer = document.getElementById('live-products-list');
+        if (liveProducts.length > 0) {
+            liveContainer.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Price</th>
+                            <th>Category</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${liveProducts.map(p => `
+                            <tr style="background: #E8F5E9;">
+                                <td><strong>${p.name}</strong></td>
+                                <td>₹${p.price}</td>
+                                <td>${p.category || 'N/A'}</td>
+                                <td>${p.isVeg ? '🌿 Veg' : '🍗 Non-Veg'}</td>
+                                <td>
+                                    <button class="btn btn-success btn-sm" onclick="toggleStock(${p.id}, ${p.isAvailable})">
+                                        ✓ Live
+                                    </button>
+                                </td>
+                                <td>
+                                    <button class="btn btn-primary btn-sm" onclick="editProduct(${p.id})">Edit</button>
+                                    <button class="btn btn-secondary btn-sm" onclick="deleteProduct(${p.id})">Delete</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        } else {
+            liveContainer.innerHTML = '<p style="color: #999; padding: 1rem;">No products in Live Menu. Add products or mark catalog items as "In Stock".</p>';
+        }
+        
+        // Render Catalog (Out of Stock)
+        const catalogContainer = document.getElementById('catalog-products-list');
+        if (catalogProducts.length > 0) {
+            catalogContainer.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Price</th>
+                            <th>Category</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${catalogProducts.map(p => `
+                            <tr style="opacity: 0.7; background: #FFF3E0;">
+                                <td>${p.name}</td>
+                                <td>₹${p.price}</td>
+                                <td>${p.category || 'N/A'}</td>
+                                <td>${p.isVeg ? '🌿 Veg' : '🍗 Non-Veg'}</td>
+                                <td>
+                                    <button class="btn btn-secondary btn-sm" onclick="toggleStock(${p.id}, ${p.isAvailable})">
+                                        ✗ Catalog
+                                    </button>
+                                </td>
+                                <td>
+                                    <button class="btn btn-primary btn-sm" onclick="editProduct(${p.id})">Edit</button>
+                                    <button class="btn btn-secondary btn-sm" onclick="deleteProduct(${p.id})">Delete</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        } else {
+            catalogContainer.innerHTML = '<p style="color: #999; padding: 1rem;">No products in Catalog. All products are live!</p>';
+        }
+    } else {
+        document.getElementById('live-products-list').innerHTML = '<p>No products found. Add your first product!</p>';
+        document.getElementById('catalog-products-list').innerHTML = '';
+    }
+}
+
+async function saveProduct(e) {
+    e.preventDefault();
+    const token = localStorage.getItem('token');
+    const productId = document.getElementById('productId').value;
+    
+    const productData = {
+        name: document.getElementById('productName').value,
+        price: parseFloat(document.getElementById('productPrice').value),
+        image: document.getElementById('productImage').value || '',
+        description: document.getElementById('productDescription').value,
+        category: document.getElementById('productCategory').value,
+        isVeg: document.getElementById('productVeg').checked ? 1 : 0,
+        isHealthBox: document.getElementById('productHealth').checked ? 1 : 0,
+        isAvailable: document.getElementById('productAvailable').checked ? 1 : 0
+    };
+    
+    try {
+        const url = productId ? `/api/products/${productId}` : '/api/products';
+        const method = productId ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(productData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert(productId ? 'Product updated successfully!' : 'Product added successfully!', 'success');
+            document.getElementById('addProductForm').reset();
+            hideProductForm();
+            loadAdminProducts();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (error) {
+        showAlert('Failed to save product', 'error');
+    }
+}
+
+async function deleteProduct(id) {
+    if (!confirm('Are you sure you want to delete this product?')) return;
+    
+    const token = localStorage.getItem('token');
+    
+    try {
+        const response = await fetch(`/api/products/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert('Product deleted successfully!', 'success');
+            loadAdminProducts();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (error) {
+        showAlert('Failed to delete product', 'error');
+    }
+}
+
+async function editProduct(productId) {
+    const token = localStorage.getItem('token');
+    
+    try {
+        const response = await fetch(`/api/products/${productId}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const product = data.product;
+            
+            // Fill the form with product data
+            document.getElementById('productId').value = product.id;
+            document.getElementById('productName').value = product.name;
+            document.getElementById('productPrice').value = product.price;
+            document.getElementById('productImage').value = product.image || '';
+            document.getElementById('productDescription').value = product.description || '';
+            document.getElementById('productCategory').value = product.category || 'Main Course';
+            document.getElementById('productVeg').checked = product.isVeg;
+            document.getElementById('productHealth').checked = product.isHealthBox;
+            document.getElementById('productAvailable').checked = product.isAvailable;
+            
+            // Update form title and button
+            document.getElementById('product-form-title').textContent = 'Edit Product';
+            document.getElementById('product-submit-btn').textContent = 'Update Product';
+            
+            // Show the form
+            document.getElementById('product-form').style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (error) {
+        showAlert('Failed to load product details', 'error');
+    }
+}
+
+async function toggleStock(productId, currentStatus) {
+    const token = localStorage.getItem('token');
+    const newStatus = currentStatus ? 0 : 1;
+    const message = newStatus ? 'move to Live Menu' : 'move to Catalog (out of stock)';
+    
+    if (!confirm(`Are you sure you want to ${message}?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/products/${productId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ isAvailable: newStatus })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const successMsg = newStatus ? '📺 Product moved to Live Menu!' : '📦 Product moved to Catalog';
+            showAlert(successMsg, 'success');
+            loadAdminProducts();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (error) {
+        showAlert('Failed to update stock status', 'error');
+    }
+}
+
+function showAddProductForm() {
+    // Reset form for new product
+    document.getElementById('addProductForm').reset();
+    document.getElementById('productId').value = '';
+    document.getElementById('product-form-title').textContent = 'Add New Product';
+    document.getElementById('product-submit-btn').textContent = 'Add Product';
+    document.getElementById('product-form').style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function hideProductForm() {
+    document.getElementById('product-form').style.display = 'none';
+    document.getElementById('addProductForm').reset();
+    document.getElementById('productId').value = '';
+}
+</script>
+{% endblock %}

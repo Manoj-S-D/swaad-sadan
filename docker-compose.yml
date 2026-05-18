@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: ./backend-python
+      dockerfile: Dockerfile
+    container_name: swaad-sadan-web
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-jwt-secret-key}
+      - PORT=5000
+      - DATABASE_PATH=/app/data/swaad_sadan.db
+      - CONTACT_EMAIL=${CONTACT_EMAIL:-swaadsadancafe@gmail.com}
+      - CONTACT_PHONE=${CONTACT_PHONE:-8296064418}
+      - UPI_ID=${UPI_ID:-8296064418@paytm}
+      - BASE_DELIVERY_CHARGE=${BASE_DELIVERY_CHARGE:-30}
+      - PARCEL_CHARGE=${PARCEL_CHARGE:-10}
+      - FREE_DELIVERY_ABOVE=${FREE_DELIVERY_ABOVE:-500}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@swaadsadan.com}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET}
+    volumes:
+      - ./backend-python:/app
+      - swaad-sadan-data:/app/data
+    restart: unless-stopped
+    networks:
+      - swaad-sadan-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/api/settings')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  swaad-sadan-data:
+    driver: local
+
+networks:
+  swaad-sadan-network:
+    driver: bridge

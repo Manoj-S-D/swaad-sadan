@@ -1,0 +1,282 @@
+{% extends 'base.html' %}
+{% block title %}Live & Upcoming Bookings - Admin{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="section-heading">
+        <h2>Live & Upcoming Bookings</h2>
+        <p>View all confirmed bookings scheduled for today and upcoming dates</p>
+    </div>
+    
+    <!-- Live Today Section -->
+    <div style="margin-bottom: 3rem;">
+        <h3 style="color: var(--primary); margin-bottom: 1.5rem;">
+            🔴 Live Today ({{ current_date }})
+        </h3>
+        <div id="live-bookings"></div>
+    </div>
+    
+    <!-- Upcoming Section -->
+    <div>
+        <h3 style="color: var(--primary); margin-bottom: 1.5rem;">
+            📅 Upcoming Bookings
+        </h3>
+        <div id="upcoming-bookings"></div>
+    </div>
+</div>
+
+<style>
+.booking-card {
+    background: white;
+    border-left: 5px solid var(--primary);
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.booking-live {
+    border-left-color: #ff4444;
+    background: #fff5f5;
+}
+
+.booking-upcoming {
+    border-left-color: #4CAF50;
+}
+
+.booking-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.booking-time {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--primary);
+}
+
+.service-badge {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.service-catering {
+    background: #FFE5B4;
+    color: #FF6B35;
+}
+
+.service-events {
+    background: #E0F7FA;
+    color: #00838F;
+}
+
+.service-subscriptions {
+    background: #F3E5F5;
+    color: #6A1B9A;
+}
+
+.booking-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.detail-item {
+    padding: 0.5rem;
+    background: #f9f9f9;
+    border-radius: 4px;
+}
+
+.detail-item strong {
+    display: block;
+    color: #666;
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: #999;
+}
+
+.empty-state-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    loadLiveUpcoming();
+    
+    // Auto-refresh every 2 minutes
+    setInterval(loadLiveUpcoming, 120000);
+});
+
+async function loadLiveUpcoming() {
+    const token = localStorage.getItem('token');
+    
+    try {
+        const response = await fetch('/api/requests/live-upcoming', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            displayLiveBookings(data.live);
+            displayUpcomingBookings(data.upcoming);
+        }
+    } catch (error) {
+        console.error('Error loading bookings:', error);
+        showAlert('Failed to load bookings', 'error');
+    }
+}
+
+function displayLiveBookings(bookings) {
+    const container = document.getElementById('live-bookings');
+    
+    if (bookings.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📭</div>
+                <p>No bookings scheduled for today</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = bookings.map(booking => createBookingCard(booking, true)).join('');
+}
+
+function displayUpcomingBookings(bookings) {
+    const container = document.getElementById('upcoming-bookings');
+    
+    if (bookings.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📅</div>
+                <p>No upcoming bookings</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Group by date
+    const grouped = {};
+    bookings.forEach(booking => {
+        const date = booking.scheduledDate;
+        if (!grouped[date]) {
+            grouped[date] = [];
+        }
+        grouped[date].push(booking);
+    });
+    
+    container.innerHTML = Object.keys(grouped).map(date => `
+        <div style="margin-bottom: 2rem;">
+            <h4 style="color: #666; margin-bottom: 1rem;">
+                ${new Date(date).toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </h4>
+            ${grouped[date].map(booking => createBookingCard(booking, false)).join('')}
+        </div>
+    `).join('');
+}
+
+function createBookingCard(booking, isLive) {
+    const serviceClass = `service-${booking.serviceType}`;
+    const serviceLabel = booking.serviceType.charAt(0).toUpperCase() + booking.serviceType.slice(1);
+    
+    let detailsHTML = '';
+    
+    if (booking.serviceType === 'catering') {
+        detailsHTML = `
+            <div class="detail-item">
+                <strong>Event Type</strong>
+                ${booking.requestData.eventType || 'N/A'}
+            </div>
+            <div class="detail-item">
+                <strong>Number of Guests</strong>
+                ${booking.requestData.guests || 'N/A'}
+            </div>
+            <div class="detail-item">
+                <strong>Venue</strong>
+                ${booking.requestData.venue || 'N/A'}
+            </div>
+        `;
+    } else if (booking.serviceType === 'events') {
+        detailsHTML = `
+            <div class="detail-item">
+                <strong>Event Type</strong>
+                ${booking.requestData.eventType || 'N/A'}
+            </div>
+            <div class="detail-item">
+                <strong>Capacity</strong>
+                ${booking.requestData.capacity || 'N/A'} people
+            </div>
+            <div class="detail-item">
+                <strong>Venue</strong>
+                ${booking.requestData.venue || 'N/A'}
+            </div>
+        `;
+    } else if (booking.serviceType === 'subscriptions') {
+        detailsHTML = `
+            <div class="detail-item">
+                <strong>Plan Duration</strong>
+                ${booking.requestData.duration || 'N/A'} days
+            </div>
+            <div class="detail-item">
+                <strong>Meal Preference</strong>
+                ${booking.requestData.mealPreference || 'N/A'}
+            </div>
+            <div class="detail-item">
+                <strong>Start Date</strong>
+                ${new Date(booking.scheduledDate).toLocaleDateString('en-IN')}
+            </div>
+        `;
+    }
+    
+    return `
+        <div class="booking-card ${isLive ? 'booking-live' : 'booking-upcoming'}">
+            <div class="booking-header">
+                <div>
+                    <h3 style="margin: 0 0 0.5rem 0;">${booking.requestNumber}</h3>
+                    <span class="service-badge ${serviceClass}">${serviceLabel}</span>
+                </div>
+                <div style="text-align: right;">
+                    <div class="booking-time">${booking.scheduledTime}</div>
+                    ${isLive ? '<span style="color: #ff4444; font-weight: bold;">🔴 HAPPENING NOW</span>' : ''}
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 1rem;">
+                <p style="margin: 0.25rem 0;"><strong>Customer:</strong> ${booking.userName}</p>
+                <p style="margin: 0.25rem 0;"><strong>Contact:</strong> ${booking.userEmail}</p>
+                ${booking.totalAmount ? `<p style="margin: 0.25rem 0;"><strong>Amount:</strong> ₹${booking.totalAmount}</p>` : ''}
+            </div>
+            
+            <div class="booking-details">
+                ${detailsHTML}
+            </div>
+            
+            ${booking.requestData.menuPreferences ? `
+                <div style="margin-top: 1rem; padding: 0.75rem; background: #fffbf0; border-radius: 4px;">
+                    <strong>Menu Preferences:</strong> ${booking.requestData.menuPreferences}
+                </div>
+            ` : ''}
+            
+            ${booking.requestData.specialRequirements || booking.requestData.specialInstructions ? `
+                <div style="margin-top: 1rem; padding: 0.75rem; background: #f0f8ff; border-radius: 4px;">
+                    <strong>Special Requirements:</strong> ${booking.requestData.specialRequirements || booking.requestData.specialInstructions}
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
+</script>
+{% endblock %}

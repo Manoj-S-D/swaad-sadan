@@ -1,0 +1,229 @@
+{% extends 'base.html' %}
+{% block title %}Meal Subscriptions - SWAAD SADAN{% endblock %}
+{% block content %}
+<section class="hero" style="padding: 3rem 20px;">
+    <h1>Meal Subscription Plans</h1>
+    <p>Fresh homemade food delivered daily</p>
+</section>
+
+<div class="container">
+    <!-- User's Requests Section (if logged in) -->
+    <div id="my-requests-section" style="display: none; margin-bottom: 3rem;">
+        <h2 style="color: var(--primary); margin-bottom: 1.5rem;">My Subscription Requests</h2>
+        <div id="my-requests-list"></div>
+    </div>
+
+    <!-- Available Plans -->
+    <div style="margin-bottom: 3rem;">
+        <h2 style="color: var(--primary); text-align: center; margin-bottom: 2rem;">Our Subscription Plans</h2>
+        <div id="plans-list" class="grid grid-2"></div>
+    </div>
+
+    <!-- Request Form -->
+    <div class="card" style="max-width: 800px; margin: 0 auto;">
+        <h2 style="text-align: center; color: var(--primary); margin-bottom: 2rem;">Start Your Subscription</h2>
+        
+        <form id="subscriptionForm" onsubmit="submitSubscriptionRequest(event)">
+            <div class="form-group">
+                <label>Select Plan *</label>
+                <select class="form-control" id="planId" required>
+                    <option value="">Choose a subscription plan</option>
+                </select>
+            </div>
+
+            <div class="grid grid-2" style="gap: 1.5rem;">
+                <div class="form-group">
+                    <label>Start Date *</label>
+                    <input type="date" class="form-control" id="startDate" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Preferred Delivery Time *</label>
+                    <select class="form-control" id="deliveryTime" required>
+                        <option value="">Select time</option>
+                        <option value="08:00">8:00 AM (Breakfast)</option>
+                        <option value="12:00">12:00 PM (Lunch)</option>
+                        <option value="19:00">7:00 PM (Dinner)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Delivery Address *</label>
+                <textarea class="form-control" id="deliveryAddress" rows="2" placeholder="Full delivery address" required></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Meal Preferences</label>
+                <select class="form-control" id="mealPreference">
+                    <option value="Regular Veg">Regular Veg</option>
+                    <option value="Jain">Jain (No onion/garlic)</option>
+                    <option value="No Spicy">No Spicy</option>
+                    <option value="Diabetic Friendly">Diabetic Friendly</option>
+                    <option value="Other">Other (Specify below)</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Special Instructions</label>
+                <textarea class="form-control" id="specialInstructions" rows="3" placeholder="Any dietary restrictions, allergies, or special requests?"></textarea>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Submit Request</button>
+        </form>
+    </div>
+</div>
+
+<script>
+// Load plans and user requests on page load
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadSubscriptionPlans();
+    await loadMyRequests();
+    
+    // Set minimum date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('startDate').min = today;
+});
+
+async function loadSubscriptionPlans() {
+    try {
+        const response = await fetch('/api/subscriptions/plans');
+        const data = await response.json();
+        
+        if (data.success) {
+            // Populate plan dropdown
+            const planSelect = document.getElementById('planId');
+            data.plans.forEach(plan => {
+                const option = document.createElement('option');
+                option.value = plan.id;
+                option.textContent = `${plan.name} - ${plan.duration} days - ₹${plan.price}`;
+                planSelect.appendChild(option);
+            });
+            
+            // Display plans as cards
+            const plansList = document.getElementById('plans-list');
+            plansList.innerHTML = data.plans.map(plan => `
+                <div class="card">
+                    <h3>${plan.name}</h3>
+                    <p style="color: var(--primary); font-size: 2rem; font-weight: bold;">₹${plan.price}</p>
+                    <p><strong>Duration:</strong> ${plan.duration} days</p>
+                    <p><strong>Meals/Day:</strong> ${plan.mealsPerDay}</p>
+                    <p style="font-size: 0.9rem; color: #666;">${plan.description || ''}</p>
+                    ${plan.features ? `<ul style="text-align: left; font-size: 0.85rem;">${plan.features.map(f => `<li>${f}</li>`).join('')}</ul>` : ''}
+                    <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="selectPlan(${plan.id})">Select Plan</button>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Error loading plans:', error);
+    }
+}
+
+function selectPlan(planId) {
+    document.getElementById('planId').value = planId;
+    document.querySelector('#subscriptionForm').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function loadMyRequests() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    try {
+        const response = await fetch('/api/requests/my-requests', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        if (data.success && data.requests.length > 0) {
+            const subscriptionRequests = data.requests.filter(r => r.serviceType === 'subscriptions');
+            
+            if (subscriptionRequests.length > 0) {
+                document.getElementById('my-requests-section').style.display = 'block';
+                document.getElementById('my-requests-list').innerHTML = subscriptionRequests.map(req => `
+                    <div class="card" style="margin-bottom: 1rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div>
+                                <h3>${req.requestNumber}</h3>
+                                <p><strong>Plan:</strong> ${req.requestData.duration} days | <strong>Meal Preference:</strong> ${req.requestData.mealPreference}</p>
+                                <p><strong>Start Date:</strong> ${new Date(req.scheduledDate).toLocaleDateString()}</p>
+                                <p><strong>Status:</strong> <span class="badge badge-${req.status}">${req.status.toUpperCase()}</span></p>
+                            </div>
+                            <button class="btn btn-secondary" onclick="viewRequestDetails(${req.id})">View Details</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+    } catch (error) {
+        console.error('Error loading requests:', error);
+    }
+}
+
+async function submitSubscriptionRequest(e) {
+    e.preventDefault();
+    
+    const token = localStorage.getItem('token');
+    if (!token) {
+        showAlert('Please login to submit a request', 'error');
+        setTimeout(() => window.location.href = '/login', 1500);
+        return;
+    }
+    
+    const planId = document.getElementById('planId').value;
+    
+    // Get plan price from dropdown
+    const planSelect = document.getElementById('planId');
+    const selectedOption = planSelect.options[planSelect.selectedIndex];
+    const priceMatch = selectedOption.textContent.match(/₹(\d+)/);
+    const totalAmount = priceMatch ? parseInt(priceMatch[1]) : 0;
+    
+    // Get duration from dropdown
+    const durationMatch = selectedOption.textContent.match(/(\d+) days/);
+    const duration = durationMatch ? parseInt(durationMatch[1]) : 0;
+    
+    const requestData = {
+        serviceType: 'subscriptions',
+        packageId: planId,
+        scheduledDate: document.getElementById('startDate').value,
+        scheduledTime: document.getElementById('deliveryTime').value,
+        totalAmount: totalAmount,
+        requestData: {
+            duration: duration,
+            deliveryTime: document.getElementById('deliveryTime').value,
+            deliveryAddress: document.getElementById('deliveryAddress').value,
+            mealPreference: document.getElementById('mealPreference').value,
+            specialInstructions: document.getElementById('specialInstructions').value
+        },
+        notes: document.getElementById('specialInstructions').value
+    };
+    
+    try {
+        const response = await fetch('/api/requests/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(requestData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert(`Request ${data.requestNumber} submitted successfully! We will contact you soon.`, 'success');
+            document.getElementById('subscriptionForm').reset();
+            await loadMyRequests();
+        } else {
+            showAlert(data.message || 'Failed to submit request', 'error');
+        }
+    } catch (error) {
+        console.error('Error submitting request:', error);
+        showAlert('Error submitting request. Please try again.', 'error');
+    }
+}
+
+async function viewRequestDetails(requestId) {
+    window.location.href = `/request-details?id=${requestId}`;
+}
+</script>
+{% endblock %}

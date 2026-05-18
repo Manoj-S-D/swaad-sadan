@@ -1,0 +1,233 @@
+{% extends 'base.html' %}
+{% block title %}Event Packages - SWAAD SADAN{% endblock %}
+{% block content %}
+<section class="hero" style="padding: 3rem 20px;">
+    <h1>Event Packages</h1>
+    <p>Perfect catering for your special occasions</p>
+</section>
+
+<div class="container">
+    <!-- User's Requests Section (if logged in) -->
+    <div id="my-requests-section" style="display: none; margin-bottom: 3rem;">
+        <h2 style="color: var(--primary); margin-bottom: 1.5rem;">My Event Requests</h2>
+        <div id="my-requests-list"></div>
+    </div>
+
+    <!-- Available Packages -->
+    <div style="margin-bottom: 3rem;">
+        <h2 style="color: var(--primary); text-align: center; margin-bottom: 2rem;">Our Event Packages</h2>
+        <div id="packages-list" class="grid grid-3"></div>
+    </div>
+
+    <!-- Request Form -->
+    <div class="card" style="max-width: 800px; margin: 0 auto;">
+        <h2 style="text-align: center; color: var(--primary); margin-bottom: 2rem;">Book an Event Package</h2>
+        
+        <form id="eventForm" onsubmit="submitEventRequest(event)">
+            <div class="form-group">
+                <label>Select Package</label>
+                <select class="form-control" id="packageId">
+                    <option value="">Custom Request (No Package)</option>
+                </select>
+                <small style="color: #666;">Or leave blank for custom requirements</small>
+            </div>
+
+            <div class="grid grid-2" style="gap: 1.5rem;">
+                <div class="form-group">
+                    <label>Event Type *</label>
+                    <select class="form-control" id="eventType" required>
+                        <option value="">Select event type</option>
+                        <option value="Baby Birthday">Baby Birthday</option>
+                        <option value="Naming Ceremony">Naming Ceremony</option>
+                        <option value="Bride to Be">Bride to Be</option>
+                        <option value="Religious Ceremony">Religious Ceremony</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Expected Guests *</label>
+                    <input type="number" class="form-control" id="capacity" min="10" required>
+                </div>
+            </div>
+            
+            <div class="grid grid-2" style="gap: 1.5rem;">
+                <div class="form-group">
+                    <label>Event Date *</label>
+                    <input type="date" class="form-control" id="eventDate" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Event Time *</label>
+                    <input type="time" class="form-control" id="eventTime" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Venue/Location *</label>
+                <input type="text" class="form-control" id="venue" placeholder="Enter event location" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Special Instructions</label>
+                <textarea class="form-control" id="specialInstructions" rows="3" placeholder="Any specific requirements, dietary restrictions, or special requests?"></textarea>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Submit Request</button>
+        </form>
+    </div>
+</div>
+
+<script>
+// Load packages and user requests on page load
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadEventPackages();
+    await loadMyRequests();
+    
+    // Set minimum date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('eventDate').min = today;
+});
+
+async function loadEventPackages() {
+    try {
+        const response = await fetch('/api/events/packages');
+        const data = await response.json();
+        
+        if (data.success) {
+            // Populate package dropdown
+            const packageSelect = document.getElementById('packageId');
+            data.packages.forEach(pkg => {
+                const option = document.createElement('option');
+                option.value = pkg.id;
+                option.textContent = `${pkg.name} - ₹${pkg.pricePerPerson}/person`;
+                packageSelect.appendChild(option);
+            });
+            
+            // Display packages as cards
+            const packagesList = document.getElementById('packages-list');
+            packagesList.innerHTML = data.packages.map(pkg => `
+                <div class="card">
+                    <h3>${pkg.name}</h3>
+                    <p style="color: var(--primary); font-size: 1.5rem; font-weight: bold;">₹${pkg.pricePerPerson}/person</p>
+                    <p><strong>Capacity:</strong> ${pkg.minCapacity}-${pkg.maxCapacity} guests</p>
+                    <p style="font-size: 0.9rem; color: #666;">${pkg.description || 'Complete event package'}</p>
+                    <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="selectPackage(${pkg.id})">Select Package</button>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Error loading packages:', error);
+    }
+}
+
+function selectPackage(packageId) {
+    document.getElementById('packageId').value = packageId;
+    document.querySelector('#eventForm').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function loadMyRequests() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    try {
+        const response = await fetch('/api/requests/my-requests', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        if (data.success && data.requests.length > 0) {
+            const eventRequests = data.requests.filter(r => r.serviceType === 'events');
+            
+            if (eventRequests.length > 0) {
+                document.getElementById('my-requests-section').style.display = 'block';
+                document.getElementById('my-requests-list').innerHTML = eventRequests.map(req => `
+                    <div class="card" style="margin-bottom: 1rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div>
+                                <h3>${req.requestNumber}</h3>
+                                <p><strong>Event:</strong> ${req.requestData.eventType} | <strong>Guests:</strong> ${req.requestData.capacity}</p>
+                                <p><strong>Date:</strong> ${new Date(req.scheduledDate).toLocaleDateString()} at ${req.scheduledTime}</p>
+                                <p><strong>Status:</strong> <span class="badge badge-${req.status}">${req.status.toUpperCase()}</span></p>
+                            </div>
+                            <button class="btn btn-secondary" onclick="viewRequestDetails(${req.id})">View Details</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+    } catch (error) {
+        console.error('Error loading requests:', error);
+    }
+}
+
+async function submitEventRequest(e) {
+    e.preventDefault();
+    
+    const token = localStorage.getItem('token');
+    if (!token) {
+        showAlert('Please login to submit a request', 'error');
+        setTimeout(() => window.location.href = '/login', 1500);
+        return;
+    }
+    
+    const packageId = document.getElementById('packageId').value;
+    const capacity = parseInt(document.getElementById('capacity').value);
+    
+    // Calculate estimated amount based on package
+    let estimatedAmount = 0;
+    if (packageId) {
+        const packageSelect = document.getElementById('packageId');
+        const selectedOption = packageSelect.options[packageSelect.selectedIndex];
+        const priceMatch = selectedOption.textContent.match(/₹(\d+)/);
+        if (priceMatch) {
+            const pricePerPerson = parseInt(priceMatch[1]);
+            estimatedAmount = pricePerPerson * capacity;
+        }
+    }
+    
+    const requestData = {
+        serviceType: 'events',
+        packageId: packageId || null,
+        scheduledDate: document.getElementById('eventDate').value,
+        scheduledTime: document.getElementById('eventTime').value,
+        totalAmount: estimatedAmount,
+        requestData: {
+            eventType: document.getElementById('eventType').value,
+            capacity: capacity,
+            venue: document.getElementById('venue').value,
+            specialInstructions: document.getElementById('specialInstructions').value
+        },
+        notes: document.getElementById('specialInstructions').value
+    };
+    
+    try {
+        const response = await fetch('/api/requests/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(requestData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert(`Request ${data.requestNumber} submitted successfully! We will contact you soon.`, 'success');
+            document.getElementById('eventForm').reset();
+            await loadMyRequests();
+        } else {
+            showAlert(data.message || 'Failed to submit request', 'error');
+        }
+    } catch (error) {
+        console.error('Error submitting request:', error);
+        showAlert('Error submitting request. Please try again.', 'error');
+    }
+}
+
+async function viewRequestDetails(requestId) {
+    window.location.href = `/request-details?id=${requestId}`;
+}
+</script>
+{% endblock %}

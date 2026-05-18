@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+{% block title %}My Orders - SWAAD SADAN{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="section-heading">
+        <h2>My Orders</h2>
+        <p>Track your order history</p>
+    </div>
+    
+    <div id="orders-container"></div>
+</div>
+
+<style>
+.order-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 1.5rem;
+}
+.order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #EEE;
+    margin-bottom: 1rem;
+}
+.order-number {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--primary);
+}
+.order-status {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+.status-pending { background: #FFF3E0; color: #F57C00; }
+.status-confirmed { background: #E3F2FD; color: #1976D2; }
+.status-completed { background: #E8F5E9; color: #2E7D32; }
+.status-cancelled { background: #FFEBEE; color: #C62828; }
+.order-items {
+    margin: 1rem 0;
+}
+.order-item {
+    padding: 0.5rem 0;
+    display: flex;
+    justify-content: space-between;
+}
+.order-total {
+    padding-top: 1rem;
+    border-top: 2px solid #EEE;
+    display: flex;
+    justify-content: space-between;
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: var(--primary);
+}
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadMyOrders() {
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user'));
+    
+    if (!token || !user) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/orders/my-orders', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const data = await response.json();
+        
+        const container = document.getElementById('orders-container');
+        
+        if (data.success && data.orders.length > 0) {
+            container.innerHTML = data.orders.map(order => {
+                const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+                const pricing = typeof order.pricing === 'string' ? JSON.parse(order.pricing) : order.pricing;
+                
+                return `
+                    <div class="order-card">
+                        <div class="order-header">
+                            <div>
+                                <div class="order-number">Order #${order.orderNumber}</div>
+                                <div style="color: #666; font-size: 0.9rem; margin-top: 0.3rem;">
+                                    ${new Date(order.createdAt).toLocaleDateString('en-IN', { 
+                                        year: 'numeric', 
+                                        month: 'long', 
+                                        day: 'numeric' 
+                                    })}
+                                </div>
+                            </div>
+                            <div class="order-status status-${order.status}">
+                                ${order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                            </div>
+                        </div>
+                        
+                        <div class="order-items">
+                            <strong>Items:</strong>
+                            ${items.map(item => `
+                                <div class="order-item">
+                                    <span>${item.name} × ${item.quantity}</span>
+                                    <span>₹${item.price * item.quantity}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                        
+                        <div style="margin: 1rem 0; color: #666;">
+                            <div><strong>Type:</strong> ${order.orderType === 'delivery' ? '🚚 Delivery' : '🏪 Pickup'}</div>
+                            ${order.deliveryAddress ? `<div><strong>Address:</strong> ${order.deliveryAddress}</div>` : ''}
+                        </div>
+                        
+                        <div class="order-total">
+                            <span>Total Amount:</span>
+                            <span>₹${pricing.total}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 4rem;">
+                    <div style="font-size: 4rem; margin-bottom: 1rem;">📦</div>
+                    <h3>No orders yet</h3>
+                    <p style="color: #666; margin: 1rem 0;">Start ordering delicious food from our menu!</p>
+                    <a href="/menu" class="btn btn-primary">Browse Menu</a>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Failed to load orders:', error);
+        showAlert('Failed to load orders', 'error');
+    }
+}
+
+loadMyOrders();
+</script>
+{% endblock %}

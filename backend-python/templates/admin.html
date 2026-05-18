@@ -1,0 +1,1736 @@
+{% extends 'base.html' %}
+{% block title %}Admin Dashboard - SWAAD SADAN{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="section-heading">
+        <h2>Admin Dashboard</h2>
+        <p>Welcome to your restaurant management center</p>
+    </div>
+    
+    <!-- Stats -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value" id="totalOrders">0</div>
+            <div class="stat-label">Total Orders</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="totalUsers">0</div>
+            <div class="stat-label">Total Users</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="totalProducts">0</div>
+            <div class="stat-label">Products</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="totalRevenue">₹0</div>
+            <div class="stat-label">Total Revenue</div>
+        </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="section-heading" style="margin-top: 3rem;">
+        <h3>Quick Access</h3>
+        <p>Manage different sections of your restaurant</p>
+    </div>
+    
+    <div class="grid grid-3" style="gap: 1.5rem; margin-top: 2rem;">
+        <a href="/admin/manage-products" class="admin-card">
+            <div style="font-size: 2.5rem; margin-bottom: 1rem;">🍽️</div>
+            <h3>Products</h3>
+            <p>Manage menu items and pricing</p>
+        </a>
+        
+        <a href="/admin/manage-orders" class="admin-card">
+            <div style="font-size: 2.5rem; margin-bottom: 1rem;">📦</div>
+            <h3>Orders</h3>
+            <p>View and manage customer orders</p>
+        </a>
+        
+        <a href="/admin/manage-subscriptions" class="admin-card">
+            <div style="font-size: 2.5rem; margin-bottom: 1rem;">📅</div>
+            <h3>Subscriptions</h3>
+            <p>Manage meal subscription plans</p>
+        </a>
+        
+        <a href="/admin/manage-catering" class="admin-card">
+            <div style="font-size: 2.5rem; margin-bottom: 1rem;">🎉</div>
+            <h3>Catering</h3>
+            <p>Manage catering packages</p>
+        </a>
+        
+        <a href="/admin/manage-events" class="admin-card">
+            <div style="font-size: 2.5rem; margin-bottom: 1rem;">🎊</div>
+            <h3>Events</h3>
+            <p>Manage event packages</p>
+        </a>
+        
+        <a href="/admin/manage-coupons" class="admin-card">
+            <div style="font-size: 2.5rem; margin-bottom: 1rem;">🎫</div>
+            <h3>Coupons</h3>
+            <p>Create and manage discounts</p>
+        </a>
+    </div>
+</div>
+
+<style>
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin: 2rem 0;
+}
+
+.stat-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+}
+
+.stat-label {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.admin-card {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    text-align: center;
+    transition: all 0.3s;
+    cursor: pointer;
+    text-decoration: none;
+    color: #333;
+}
+
+.admin-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+
+.admin-card h3 {
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+}
+
+.admin-card p {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.grid-3 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+</style>
+
+<script>
+// Load admin data on page load
+document.addEventListener('DOMContentLoaded', () => {
+    loadAdminData();
+});
+
+async function loadAdminData() {
+    const token = localStorage.getItem('token');
+    
+    try {
+        const response = await fetch('/api/admin/stats', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('totalOrders').textContent = data.stats.totalOrders || 0;
+            document.getElementById('totalUsers').textContent = data.stats.totalUsers || 0;
+            document.getElementById('totalProducts').textContent = data.stats.totalProducts || 0;
+            document.getElementById('totalRevenue').textContent = `₹${data.stats.totalRevenue || 0}`;
+        }
+    } catch (error) {
+        console.error('Failed to load admin stats:', error);
+    }
+}
+</script>
+    <div style="display: flex; gap: 1rem; margin: 2rem 0; border-bottom: 2px solid #EEE; flex-wrap: wrap;">
+        <button class="tab-btn active" onclick="showTab('products')">Products</button>
+        <button class="tab-btn" onclick="showTab('orders')">Orders</button>
+        <button class="tab-btn" onclick="showTab('subscriptions')">Subscriptions</button>
+        <button class="tab-btn" onclick="showTab('catering')">Catering</button>
+        <button class="tab-btn" onclick="showTab('events')">Events</button>
+        <button class="tab-btn" onclick="showTab('coupons')">Coupons</button>
+        <button class="tab-btn" onclick="showTab('settings')">Settings</button>
+    </div>
+
+    <!-- Products Tab -->
+    <div id="products-tab" class="tab-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <h3>Manage Products</h3>
+            <button class="btn btn-primary" onclick="showAddProductForm()">+ Add Product</button>
+        </div>
+        
+        <div id="product-form" style="display: none;" class="card" style="margin-bottom: 2rem;">
+            <h3 id="product-form-title">Add New Product</h3>
+            <form id="addProductForm" onsubmit="saveProduct(event)">
+                <input type="hidden" id="productId">
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label>Product Name *</label>
+                        <input type="text" class="form-control" id="productName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Price (₹) *</label>
+                        <input type="number" class="form-control" id="productPrice" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Image URL</label>
+                    <input type="text" class="form-control" id="productImage" placeholder="https://example.com/image.jpg">
+                    <small style="color: #666;">Leave empty to use emoji placeholder</small>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea class="form-control" id="productDescription"></textarea>
+                </div>
+                <div class="grid grid-3">
+                    <div class="form-group">
+                        <label>Category</label>
+                        <select class="form-control" id="productCategory">
+                            <option>Main Course</option>
+                            <option>Snacks</option>
+                            <option>Desserts</option>
+                            <option>Beverages</option>
+                            <option>Bread</option>
+                            <option>Rice Items</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="productVeg" checked> Vegetarian</label>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="productHealth"> Health Box</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="productAvailable" checked> Available (In Stock)</label>
+                </div>
+                <button type="submit" class="btn btn-success" id="product-submit-btn">Add Product</button>
+                <button type="button" class="btn btn-secondary" onclick="hideProductForm()">Cancel</button>
+            </form>
+        </div>
+        
+        <h3 style="margin-top: 2rem; color: var(--success);">📺 Live Menu (In Stock)</h3>
+        <div id="live-products-list" style="margin-bottom: 2rem;"></div>
+        
+        <h3 style="margin-top: 2rem; color: #666;">📦 Catalog (Out of Stock)</h3>
+        <div id="catalog-products-list"></div>
+    </div>
+
+    <!-- Orders Tab -->
+    <div id="orders-tab" class="tab-content" style="display: none;">
+        <h3>Recent Orders</h3>
+        <div id="orders-list"></div>
+    </div>
+
+    <!-- Order Details Modal -->
+    <div id="order-details-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" onclick="closeOrderModal()">&times;</span>
+            <h3>Order Details</h3>
+            <div id="order-details-content"></div>
+        </div>
+    </div>
+
+    <!-- Subscriptions Tab -->
+    <div id="subscriptions-tab" class="tab-content" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <h3>Subscription Plans</h3>
+            <button class="btn btn-primary" onclick="showAddSubscriptionForm()">+ Add Plan</button>
+        </div>
+        
+        <div id="subscription-form" style="display: none;" class="card" style="margin-bottom: 2rem;">
+            <h3 id="subscription-form-title">Add New Subscription Plan</h3>
+            <form id="addSubscriptionForm" onsubmit="saveSubscription(event)">
+                <input type="hidden" id="subscriptionId">
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label>Plan Name *</label>
+                        <input type="text" class="form-control" id="subscriptionName" placeholder="e.g., Weekly Health Plan" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Price (₹) *</label>
+                        <input type="number" class="form-control" id="subscriptionPrice" required>
+                    </div>
+                </div>
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label>Duration *</label>
+                        <select class="form-control" id="subscriptionDuration" required>
+                            <option value="Weekly">Weekly (7 days)</option>
+                            <option value="Monthly">Monthly (30 days)</option>
+                            <option value="Quarterly">Quarterly (90 days)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Meals Per Day *</label>
+                        <input type="number" class="form-control" id="subscriptionMealsPerDay" min="1" max="3" value="1" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea class="form-control" id="subscriptionDescription" rows="3" placeholder="Describe what's included in this plan..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Features (comma separated)</label>
+                    <input type="text" class="form-control" id="subscriptionFeatures" placeholder="e.g., Free delivery, Customizable menu, Freshly prepared">
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="subscriptionActive" checked> Active</label>
+                </div>
+                <button type="submit" class="btn btn-success" id="subscription-submit-btn">Add Plan</button>
+                <button type="button" class="btn btn-secondary" onclick="hideSubscriptionForm()">Cancel</button>
+            </form>
+        </div>
+        
+        <div id="subscriptions-list"></div>
+    </div>
+
+    <!-- Catering Tab -->
+    <div id="catering-tab" class="tab-content" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <h3>Catering Packages</h3>
+            <button class="btn btn-primary" onclick="showAddCateringForm()">+ Add Package</button>
+        </div>
+        
+        <div id="catering-form" style="display: none;" class="card" style="margin-bottom: 2rem;">
+            <h3 id="catering-form-title">Add New Catering Package</h3>
+            <form id="addCateringForm" onsubmit="saveCatering(event)">
+                <input type="hidden" id="cateringId">
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label>Package Name *</label>
+                        <input type="text" class="form-control" id="cateringName" placeholder="e.g., Wedding Feast Package" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Price Per Person (₹) *</label>
+                        <input type="number" class="form-control" id="cateringPrice" required>
+                    </div>
+                </div>
+                <div class="grid grid-3">
+                    <div class="form-group">
+                        <label>Type *</label>
+                        <select class="form-control" id="cateringType" required>
+                            <option value="Wedding">Wedding</option>
+                            <option value="Corporate">Corporate Event</option>
+                            <option value="Birthday">Birthday Party</option>
+                            <option value="Other">Other Event</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Min Guests *</label>
+                        <input type="number" class="form-control" id="cateringMinGuests" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Max Guests</label>
+                        <input type="number" class="form-control" id="cateringMaxGuests" placeholder="Leave empty for unlimited">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea class="form-control" id="cateringDescription" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Menu Items (comma separated)</label>
+                    <input type="text" class="form-control" id="cateringMenuItems" placeholder="e.g., Paneer Tikka, Dal Makhani, Naan, Biryani">
+                </div>
+                <div class="form-group">
+                    <label>Features (comma separated)</label>
+                    <input type="text" class="form-control" id="cateringFeatures" placeholder="e.g., Live counter, Free delivery, Waiters included">
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="cateringActive" checked> Active</label>
+                </div>
+                <button type="submit" class="btn btn-success" id="catering-submit-btn">Add Package</button>
+                <button type="button" class="btn btn-secondary" onclick="hideCateringForm()">Cancel</button>
+            </form>
+        </div>
+        
+        <div id="catering-list"></div>
+    </div>
+
+    <!-- Events Tab -->
+    <div id="events-tab" class="tab-content" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <h3>Event Packages</h3>
+            <button class="btn btn-primary" onclick="showAddEventForm()">+ Add Package</button>
+        </div>
+        
+        <div id="event-form" style="display: none;" class="card" style="margin-bottom: 2rem;">
+            <h3 id="event-form-title">Add New Event Package</h3>
+            <form id="addEventForm" onsubmit="saveEvent(event)">
+                <input type="hidden" id="eventId">
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label>Package Name *</label>
+                        <input type="text" class="form-control" id="eventName" placeholder="e.g., Grand Wedding Package" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Total Price (₹) *</label>
+                        <input type="number" class="form-control" id="eventPrice" required>
+                    </div>
+                </div>
+                <div class="grid grid-3">
+                    <div class="form-group">
+                        <label>Event Type *</label>
+                        <select class="form-control" id="eventType" required>
+                            <option value="Wedding">Wedding</option>
+                            <option value="Corporate">Corporate Event</option>
+                            <option value="Birthday">Birthday</option>
+                            <option value="Anniversary">Anniversary</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Capacity (Guests) *</label>
+                        <input type="number" class="form-control" id="eventCapacity" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Duration</label>
+                        <input type="text" class="form-control" id="eventDuration" placeholder="e.g., 4 hours">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Venue</label>
+                    <input type="text" class="form-control" id="eventVenue" placeholder="e.g., Banquet Hall, Outdoor Garden">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea class="form-control" id="eventDescription" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Inclusions (comma separated)</label>
+                    <input type="text" class="form-control" id="eventInclusions" placeholder="e.g., Catering, Decoration, Photography, DJ">
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="eventActive" checked> Active</label>
+                </div>
+                <button type="submit" class="btn btn-success" id="event-submit-btn">Add Package</button>
+                <button type="button" class="btn btn-secondary" onclick="hideEventForm()">Cancel</button>
+            </form>
+        </div>
+        
+        <div id="events-list"></div>
+    </div>
+
+    <!-- Coupons Tab -->
+    <div id="coupons-tab" class="tab-content" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <h3>Manage Coupons</h3>
+            <button class="btn btn-primary" onclick="showAddCouponForm()">+ Add Coupon</button>
+        </div>
+        
+        <div id="coupon-form" style="display: none;" class="card" style="margin-bottom: 2rem;">
+            <h3>Add New Coupon</h3>
+            <form id="addCouponForm" onsubmit="saveCoupon(event)">
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label>Coupon Code *</label>
+                        <input type="text" class="form-control" id="couponCode" placeholder="WELCOME50" style="text-transform: uppercase;" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Expiry Date *</label>
+                        <input type="date" class="form-control" id="couponExpiry" required>
+                    </div>
+                </div>
+                <div class="grid grid-3">
+                    <div class="form-group">
+                        <label>Discount Type *</label>
+                        <select class="form-control" id="couponType" onchange="toggleMaxDiscount()" required>
+                            <option value="flat">Flat Discount (₹)</option>
+                            <option value="percentage">Percentage (%)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Value *</label>
+                        <input type="number" class="form-control" id="couponValue" placeholder="50" required>
+                    </div>
+                    <div class="form-group" id="maxDiscountGroup" style="display: none;">
+                        <label>Max Discount (₹)</label>
+                        <input type="number" class="form-control" id="couponMaxDiscount" placeholder="200">
+                    </div>
+                </div>
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label>Minimum Order Value (₹)</label>
+                        <input type="number" class="form-control" id="couponMinOrder" placeholder="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Usage Limit</label>
+                        <input type="number" class="form-control" id="couponLimit" value="100">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Category (Optional)</label>
+                    <input type="text" class="form-control" id="couponCategory" placeholder="e.g., First Order, Festival">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea class="form-control" id="couponDescription" placeholder="Get flat ₹50 off on orders above ₹500"></textarea>
+                </div>
+                <button type="submit" class="btn btn-success">Create Coupon</button>
+                <button type="button" class="btn btn-secondary" onclick="hideCouponForm()">Cancel</button>
+            </form>
+        </div>
+        
+        <div id="coupons-list"></div>
+    </div>
+
+    <!-- Settings Tab -->
+    <div id="settings-tab" class="tab-content" style="display: none;">
+        <h3>Restaurant Settings</h3>
+        <div class="card">
+            <form>
+                <div class="form-group">
+                    <label>Delivery Charge (₹)</label>
+                    <input type="number" class="form-control" value="30">
+                </div>
+                <div class="form-group">
+                    <label>Parcel Charge (₹)</label>
+                    <input type="number" class="form-control" value="10">
+                </div>
+                <div class="form-group">
+                    <label>Free Delivery Above (₹)</label>
+                    <input type="number" class="form-control" value="500">
+                </div>
+                <button type="submit" class="btn btn-primary">Save Settings</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.tab-btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #666;
+    transition: all 0.3s;
+}
+.tab-btn.active {
+    color: var(--primary);
+    border-bottom: 3px solid var(--primary);
+}
+.tab-content {
+    margin-top: 2rem;
+}
+.status-pending { 
+    padding: 0.3rem 0.8rem;
+    border-radius: 15px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: #FFF3E0; 
+    color: #F57C00; 
+}
+.status-confirmed { 
+    padding: 0.3rem 0.8rem;
+    border-radius: 15px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: #E3F2FD; 
+    color: #1976D2; 
+}
+.status-completed { 
+    padding: 0.3rem 0.8rem;
+    border-radius: 15px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: #E8F5E9; 
+    color: #2E7D32; 
+}
+.status-cancelled { 
+    padding: 0.3rem 0.8rem;
+    border-radius: 15px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: #FFEBEE; 
+    color: #C62828; 
+}
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    overflow-y: auto;
+}
+.modal-content {
+    background-color: white;
+    margin: 5% auto;
+    padding: 2rem;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 800px;
+    position: relative;
+}
+.close {
+    position: absolute;
+    right: 1.5rem;
+    top: 1.5rem;
+    font-size: 2rem;
+    font-weight: bold;
+    color: #999;
+    cursor: pointer;
+}
+.close:hover {
+    color: #333;
+}
+.order-detail-section {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: #F9F9F9;
+    border-radius: 8px;
+}
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadAdminData() {
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user'));
+    
+    // Check if user is logged in
+    if (!token || !user) {
+        showAlert('Please login to access admin dashboard', 'error');
+        setTimeout(() => window.location.href = '/login', 1500);
+        return;
+    }
+    
+    // Check if user is admin
+    if (user.role !== 'admin') {
+        showAlert('Admin access required. You do not have permission to access this page.', 'error');
+        setTimeout(() => window.location.href = '/', 2000);
+        return;
+    }
+    
+    // Load stats
+    try {
+        const response = await fetch('/api/admin/stats', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('totalOrders').textContent = data.stats.totalOrders;
+            document.getElementById('totalUsers').textContent = data.stats.totalUsers;
+            document.getElementById('totalProducts').textContent = data.stats.totalProducts;
+            document.getElementById('totalRevenue').textContent = `₹${data.stats.totalRevenue}`;
+        }
+    } catch (error) {
+        console.error('Failed to load stats:', error);
+    }
+    
+    // Load products
+    loadAdminProducts();
+}
+
+async function loadAdminProducts() {
+    // Fetch all products including catalog items (isAvailable=0)
+    const response = await fetch('/api/products?includeAll=true');
+    const data = await response.json();
+    
+    if (data.success && data.products.length > 0) {
+        // Separate products into live (in stock) and catalog (out of stock)
+        const liveProducts = data.products.filter(p => p.isAvailable === 1);
+        const catalogProducts = data.products.filter(p => p.isAvailable === 0);
+        
+        // Render Live Menu (In Stock)
+        const liveContainer = document.getElementById('live-products-list');
+        if (liveProducts.length > 0) {
+            liveContainer.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Price</th>
+                            <th>Category</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${liveProducts.map(p => `
+                            <tr style="background: #E8F5E9;">
+                                <td><strong>${p.name}</strong></td>
+                                <td>₹${p.price}</td>
+                                <td>${p.category || 'N/A'}</td>
+                                <td>${p.isVeg ? '🌿 Veg' : '🍗 Non-Veg'}</td>
+                                <td>
+                                    <button class="btn btn-success" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="toggleStock(${p.id}, ${p.isAvailable})">
+                                        ✓ Live
+                                    </button>
+                                </td>
+                                <td>
+                                    <button class="btn btn-primary" style="padding: 0.3rem 0.6rem; font-size: 0.85rem; margin-right: 0.3rem;" onclick="editProduct(${p.id})">Edit</button>
+                                    <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.85rem;" onclick="deleteProduct(${p.id})">Delete</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        } else {
+            liveContainer.innerHTML = '<p style="color: #999; padding: 1rem;">No products in Live Menu. Add products or mark catalog items as "In Stock".</p>';
+        }
+        
+        // Render Catalog (Out of Stock)
+        const catalogContainer = document.getElementById('catalog-products-list');
+        if (catalogProducts.length > 0) {
+            catalogContainer.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Price</th>
+                            <th>Category</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${catalogProducts.map(p => `
+                            <tr style="opacity: 0.7; background: #FFF3E0;">
+                                <td>${p.name}</td>
+                                <td>₹${p.price}</td>
+                                <td>${p.category || 'N/A'}</td>
+                                <td>${p.isVeg ? '🌿 Veg' : '🍗 Non-Veg'}</td>
+                                <td>
+                                    <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="toggleStock(${p.id}, ${p.isAvailable})">
+                                        ✗ Catalog
+                                    </button>
+                                </td>
+                                <td>
+                                    <button class="btn btn-primary" style="padding: 0.3rem 0.6rem; font-size: 0.85rem; margin-right: 0.3rem;" onclick="editProduct(${p.id})">Edit</button>
+                                    <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.85rem;" onclick="deleteProduct(${p.id})">Delete</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        } else {
+            catalogContainer.innerHTML = '<p style="color: #999; padding: 1rem;">No products in Catalog. All products are live!</p>';
+        }
+    } else {
+        document.getElementById('live-products-list').innerHTML = '<p>No products found. Add your first product!</p>';
+        document.getElementById('catalog-products-list').innerHTML = '';
+    }
+}
+
+async function saveProduct(e) {
+    e.preventDefault();
+    const token = localStorage.getItem('token');
+    const productId = document.getElementById('productId').value;
+    
+    const productData = {
+        name: document.getElementById('productName').value,
+        price: parseFloat(document.getElementById('productPrice').value),
+        image: document.getElementById('productImage').value || '',
+        description: document.getElementById('productDescription').value,
+        category: document.getElementById('productCategory').value,
+        isVeg: document.getElementById('productVeg').checked ? 1 : 0,
+        isHealthBox: document.getElementById('productHealth').checked ? 1 : 0,
+        isAvailable: document.getElementById('productAvailable').checked ? 1 : 0
+    };
+    
+    try {
+        const url = productId ? `/api/products/${productId}` : '/api/products';
+        const method = productId ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(productData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert(productId ? 'Product updated successfully!' : 'Product added successfully!', 'success');
+            document.getElementById('addProductForm').reset();
+            hideProductForm();
+            loadAdminProducts();
+            loadAdminData(); // Refresh stats
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (error) {
+        showAlert('Failed to save product', 'error');
+    }
+}
+
+async function deleteProduct(id) {
+    if (!confirm('Are you sure you want to delete this product?')) return;
+    
+    const token = localStorage.getItem('token');
+    
+    try {
+        const response = await fetch(`/api/products/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert('Product deleted successfully!', 'success');
+            loadAdminProducts();
+            loadAdminData();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (error) {
+        showAlert('Failed to delete product', 'error');
+    }
+}
+
+async function editProduct(productId) {
+    const token = localStorage.getItem('token');
+    
+    try {
+        const response = await fetch(`/api/products/${productId}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const product = data.product;
+            
+            // Fill the form with product data
+            document.getElementById('productId').value = product.id;
+            document.getElementById('productName').value = product.name;
+            document.getElementById('productPrice').value = product.price;
+            document.getElementById('productImage').value = product.image || '';
+            document.getElementById('productDescription').value = product.description || '';
+            document.getElementById('productCategory').value = product.category || 'Main Course';
+            document.getElementById('productVeg').checked = product.isVeg;
+            document.getElementById('productHealth').checked = product.isHealthBox;
+            document.getElementById('productAvailable').checked = product.isAvailable;
+            
+            // Update form title and button
+            document.getElementById('product-form-title').textContent = 'Edit Product';
+            document.getElementById('product-submit-btn').textContent = 'Update Product';
+            
+            // Show the form
+            document.getElementById('product-form').style.display = 'block';
+            
+            // Scroll to form
+            document.getElementById('product-form').scrollIntoView({ behavior: 'smooth' });
+        }
+    } catch (error) {
+        showAlert('Failed to load product details', 'error');
+    }
+}
+
+async function toggleStock(productId, currentStatus) {
+    const token = localStorage.getItem('token');
+    const newStatus = currentStatus ? 0 : 1;
+    const message = newStatus ? 'move to Live Menu' : 'move to Catalog (out of stock)';
+    
+    if (!confirm(`Are you sure you want to ${message}?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/products/${productId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ isAvailable: newStatus })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const successMsg = newStatus ? '📺 Product moved to Live Menu!' : '📦 Product moved to Catalog';
+            showAlert(successMsg, 'success');
+            loadAdminProducts();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (error) {
+        showAlert('Failed to update stock status', 'error');
+    }
+}
+
+function showAddProductForm() {
+    // Reset form for new product
+    document.getElementById('addProductForm').reset();
+    document.getElementById('productId').value = '';
+    document.getElementById('product-form-title').textContent = 'Add New Product';
+    document.getElementById('product-submit-btn').textContent = 'Add Product';
+    document.getElementById('product-form').style.display = 'block';
+}
+
+function hideProductForm() {
+    document.getElementById('product-form').style.display = 'none';
+    document.getElementById('addProductForm').reset();
+    document.getElementById('productId').value = '';
+}
+
+function hideAddProductForm() {
+    hideProductForm();
+}
+
+async function loadAdminOrders() {
+    const token = localStorage.getItem('token');
+    
+    try {
+        const response = await fetch('/api/admin/recent-orders', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        const container = document.getElementById('orders-list');
+        
+        if (data.success && data.orders.length > 0) {
+            container.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Order #</th>
+                            <th>Date & Time</th>
+                            <th>Customer</th>
+                            <th>Items</th>
+                            <th>Total</th>
+                            <th>Payment</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.orders.map(order => {
+                            const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+                            const pricing = typeof order.pricing === 'string' ? JSON.parse(order.pricing) : order.pricing;
+                            const payment = typeof order.payment === 'string' ? JSON.parse(order.payment) : order.payment;
+                            const itemCount = items.length;
+                            const orderDate = new Date(order.createdAt);
+                            const date = orderDate.toLocaleDateString('en-IN');
+                            const time = orderDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+                            
+                            // Payment badge
+                            const paymentBadge = payment.method === 'COD' 
+                                ? '<span style="background: #FFF3E0; color: #F57C00; padding: 0.2rem 0.6rem; border-radius: 10px; font-size: 0.8rem; font-weight: 600;">💵 COD</span>'
+                                : '<span style="background: #E8F5E9; color: #2E7D32; padding: 0.2rem 0.6rem; border-radius: 10px; font-size: 0.8rem; font-weight: 600;">💳 Online</span>';
+                            
+                            // Create action buttons based on current status
+                            let actionButtons = '';
+                            if (order.status === 'pending') {
+                                actionButtons = `<button class="btn btn-primary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; margin-right: 0.3rem;" onclick="updateOrderStatus(${order.id}, 'confirmed')">Confirm</button>
+                                <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="updateOrderStatus(${order.id}, 'cancelled')">Cancel</button>`;
+                            } else if (order.status === 'confirmed') {
+                                actionButtons = `<button class="btn btn-success" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="updateOrderStatus(${order.id}, 'completed')">Complete</button>`;
+                            } else {
+                                actionButtons = '<span style="color: #999; font-size: 0.85rem;">-</span>';
+                            }
+                            
+                            return `
+                                <tr>
+                                    <td><strong>${order.orderNumber}</strong></td>
+                                    <td>${date}<br><small style="color: #666;">${time}</small></td>
+                                    <td>User #${order.userId}</td>
+                                    <td><a href="#" onclick="viewOrderDetails(${order.id}); return false;" style="color: var(--primary); text-decoration: underline;">${itemCount} item(s)</a></td>
+                                    <td><strong>₹${pricing.total}</strong></td>
+                                    <td>${paymentBadge}</td>
+                                    <td>${order.orderType === 'delivery' ? '🚚 Delivery' : '🛍️ Pickup'}</td>
+                                    <td><span class="status-${order.status}">${order.status.toUpperCase()}</span></td>
+                                    <td>${actionButtons}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+        } else {
+            container.innerHTML = '<p>No orders found yet.</p>';
+        }
+    } catch (error) {
+        console.error('Failed to load orders:', error);
+        document.getElementById('orders-list').innerHTML = '<p>Failed to load orders.</p>';
+    }
+}
+
+async function updateOrderStatus(orderId, newStatus) {
+    const token = localStorage.getItem('token');
+    
+    if (!confirm(`Are you sure you want to ${newStatus} this order?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/orders/${orderId}/status`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ status: newStatus })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert(`Order ${newStatus} successfully!`, 'success');
+            loadAdminOrders(); // Reload orders
+            loadAdminData(); // Refresh stats
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (error) {
+        showAlert('Failed to update order status', 'error');
+    }
+}
+
+async function viewOrderDetails(orderId) {
+    const token = localStorage.getItem('token');
+    
+    try {
+        const response = await fetch(`/api/orders/${orderId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            const order = data.order;
+            const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+            const pricing = typeof order.pricing === 'string' ? JSON.parse(order.pricing) : order.pricing;
+            const payment = typeof order.payment === 'string' ? JSON.parse(order.payment) : order.payment;
+            const orderDate = new Date(order.createdAt);
+            
+            const modalContent = `
+                <div class="order-detail-section">
+                    <h4>Order #${order.orderNumber}</h4>
+                    <p><strong>Placed:</strong> ${orderDate.toLocaleString('en-IN')}</p>
+                    <p><strong>Status:</strong> <span class="status-${order.status}">${order.status.toUpperCase()}</span></p>
+                </div>
+                
+                <div class="order-detail-section">
+                    <h4>Customer Details</h4>
+                    <p><strong>User ID:</strong> ${order.userId}</p>
+                    <p><strong>Order Type:</strong> ${order.orderType === 'delivery' ? '🚚 Delivery' : '🛍️ Pickup'}</p>
+                    ${order.deliveryAddress ? `<p><strong>Delivery Address:</strong> ${order.deliveryAddress}</p>` : ''}
+                    ${order.specialInstructions ? `<p><strong>Special Instructions:</strong> ${order.specialInstructions}</p>` : ''}
+                </div>
+                
+                <div class="order-detail-section">
+                    <h4>Order Items</h4>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Price</th>
+                                <th>Quantity</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${items.map(item => `
+                                <tr>
+                                    <td>${item.name}</td>
+                                    <td>₹${item.price}</td>
+                                    <td>${item.quantity}</td>
+                                    <td>₹${item.price * item.quantity}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="order-detail-section">
+                    <h4>Payment Details</h4>
+                    <p><strong>Method:</strong> ${payment.method === 'COD' ? '💵 Cash on Delivery' : '💳 Online Payment'}</p>
+                    <p><strong>Payment Status:</strong> ${payment.status}</p>
+                    <table style="width: 100%; margin-top: 1rem;">
+                        <tr><td>Subtotal:</td><td style="text-align: right;"><strong>₹${pricing.subtotal}</strong></td></tr>
+                        <tr><td>Delivery Charge:</td><td style="text-align: right;">₹${pricing.deliveryCharge}</td></tr>
+                        <tr><td>Parcel Charge:</td><td style="text-align: right;">₹${pricing.parcelCharge}</td></tr>
+                        <tr><td>Discount:</td><td style="text-align: right;">-₹${pricing.discount || 0}</td></tr>
+                        <tr style="font-size: 1.2rem; border-top: 2px solid #333; margin-top: 0.5rem;">
+                            <td><strong>Total:</strong></td>
+                            <td style="text-align: right;"><strong>₹${pricing.total}</strong></td>
+                        </tr>
+                    </table>
+                </div>
+            `;
+            
+            document.getElementById('order-details-content').innerHTML = modalContent;
+            document.getElementById('order-details-modal').style.display = 'block';
+        }
+    } catch (error) {
+        showAlert('Failed to load order details', 'error');
+    }
+}
+
+function closeOrderModal() {
+    document.getElementById('order-details-modal').style.display = 'none';
+}
+
+function showTab(tabName) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(tab => tab.style.display = 'none');
+    
+    event.target.classList.add('active');
+    document.getElementById(tabName + '-tab').style.display = 'block';
+    
+    // Load data when switching to specific tabs
+    if (tabName === 'orders') {
+        loadAdminOrders();
+    } else if (tabName === 'coupons') {
+        loadAdminCoupons();
+    } else if (tabName === 'subscriptions') {
+        loadAdminSubscriptions();
+    } else if (tabName === 'catering') {
+        loadAdminCatering();
+    } else if (tabName === 'events') {
+        loadAdminEvents();
+    }
+}
+
+// ===== COUPON MANAGEMENT =====
+
+async function loadAdminCoupons() {
+    const token = localStorage.getItem('token');
+    
+    try {
+        const response = await fetch('/api/coupons/');
+        const data = await response.json();
+        
+        const container = document.getElementById('coupons-list');
+        
+        if (data.success && data.coupons.length > 0) {
+            container.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Code</th>
+                            <th>Type</th>
+                            <th>Discount</th>
+                            <th>Min Order</th>
+                            <th>Expiry</th>
+                            <th>Usage</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.coupons.map(c => {
+                            const isExpired = new Date(c.expiryDate) < new Date();
+                            const discountText = c.type === 'flat' 
+                                ? `₹${c.value}` 
+                                : `${c.value}%${c.maxDiscount ? ` (max ₹${c.maxDiscount})` : ''}`;
+                            
+                            return `
+                                <tr style="${isExpired ? 'opacity: 0.5;' : ''}">
+                                    <td><strong>${c.code}</strong></td>
+                                    <td>${c.type.toUpperCase()}</td>
+                                    <td>${discountText}</td>
+                                    <td>₹${c.minOrderValue}</td>
+                                    <td>${new Date(c.expiryDate).toLocaleDateString('en-IN')}</td>
+                                    <td>${c.usedCount} / ${c.usageLimit}</td>
+                                    <td>
+                                        <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.85rem;" onclick="deleteCoupon(${c.id})">Delete</button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+        } else {
+            container.innerHTML = '<p>No coupons found. Create your first coupon!</p>';
+        }
+    } catch (error) {
+        console.error('Failed to load coupons:', error);
+        document.getElementById('coupons-list').innerHTML = '<p>Failed to load coupons.</p>';
+    }
+}
+
+async function saveCoupon(e) {
+    e.preventDefault();
+    const token = localStorage.getItem('token');
+    
+    const couponData = {
+        code: document.getElementById('couponCode').value.toUpperCase(),
+        type: document.getElementById('couponType').value,
+        value: parseFloat(document.getElementById('couponValue').value),
+        maxDiscount: document.getElementById('couponMaxDiscount').value ? parseFloat(document.getElementById('couponMaxDiscount').value) : null,
+        minOrderValue: parseFloat(document.getElementById('couponMinOrder').value) || 0,
+        category: document.getElementById('couponCategory').value || null,
+        description: document.getElementById('couponDescription').value || '',
+        expiryDate: document.getElementById('couponExpiry').value,
+        usageLimit: parseInt(document.getElementById('couponLimit').value) || 100
+    };
+    
+    try {
+        const response = await fetch('/api/coupons/create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(couponData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert('Coupon created successfully!', 'success');
+            document.getElementById('addCouponForm').reset();
+            hideCouponForm();
+            loadAdminCoupons();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (error) {
+        showAlert('Failed to create coupon', 'error');
+    }
+}
+
+async function deleteCoupon(id) {
+    if (!confirm('Are you sure you want to delete this coupon?')) return;
+    
+    const token = localStorage.getItem('token');
+    
+    try {
+        const response = await fetch(`/api/coupons/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert('Coupon deleted successfully!', 'success');
+            loadAdminCoupons();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (error) {
+        showAlert('Failed to delete coupon', 'error');
+    }
+}
+
+function showAddCouponForm() {
+    document.getElementById('coupon-form').style.display = 'block';
+    // Set default expiry to 30 days from now
+    const date = new Date();
+    date.setDate(date.getDate() + 30);
+    document.getElementById('couponExpiry').value = date.toISOString().split('T')[0];
+}
+
+function hideCouponForm() {
+    document.getElementById('coupon-form').style.display = 'none';
+    document.getElementById('addCouponForm').reset();
+}
+
+function toggleMaxDiscount() {
+    const type = document.getElementById('couponType').value;
+    const maxDiscountGroup = document.getElementById('maxDiscountGroup');
+    maxDiscountGroup.style.display = type === 'percentage' ? 'block' : 'none';
+}
+
+// ===== SUBSCRIPTION MANAGEMENT =====
+
+async function loadAdminSubscriptions() {
+    const token = localStorage.getItem('token');
+    
+    try {
+        const response = await fetch('/api/subscriptions/plans/all', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        const container = document.getElementById('subscriptions-list');
+        
+        if (data.success && data.plans.length > 0) {
+            container.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Plan Name</th>
+                            <th>Duration</th>
+                            <th>Price</th>
+                            <th>Meals/Day</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.plans.map(plan => `
+                            <tr>
+                                <td><strong>${plan.name}</strong></td>
+                                <td>${plan.duration}</td>
+                                <td>₹${plan.price}</td>
+                                <td>${plan.mealsPerDay}</td>
+                                <td><span class="badge badge-${plan.isActive ? 'success' : 'secondary'}">${plan.isActive ? 'Active' : 'Inactive'}</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-primary" onclick='editSubscription(${JSON.stringify(plan).replace(/'/g, "&#39;")})'>Edit</button>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteSubscription(${plan.id})">Delete</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        } else {
+            container.innerHTML = '<p>No subscription plans yet. Add your first plan!</p>';
+        }
+    } catch (error) {
+        showAlert('Failed to load subscriptions', 'error');
+    }
+}
+
+function showAddSubscriptionForm() {
+    document.getElementById('subscription-form').style.display = 'block';
+    document.getElementById('subscription-form-title').textContent = 'Add New Subscription Plan';
+    document.getElementById('subscription-submit-btn').textContent = 'Add Plan';
+    document.getElementById('addSubscriptionForm').reset();
+    document.getElementById('subscriptionId').value = '';
+    document.getElementById('subscriptionActive').checked = true;
+}
+
+function hideSubscriptionForm() {
+    document.getElementById('subscription-form').style.display = 'none';
+    document.getElementById('addSubscriptionForm').reset();
+}
+
+function editSubscription(plan) {
+    document.getElementById('subscription-form').style.display = 'block';
+    document.getElementById('subscription-form-title').textContent = 'Edit Subscription Plan';
+    document.getElementById('subscription-submit-btn').textContent = 'Update Plan';
+    document.getElementById('subscriptionId').value = plan.id;
+    document.getElementById('subscriptionName').value = plan.name;
+    document.getElementById('subscriptionPrice').value = plan.price;
+    document.getElementById('subscriptionDuration').value = plan.duration;
+    document.getElementById('subscriptionMealsPerDay').value = plan.mealsPerDay;
+    document.getElementById('subscriptionDescription').value = plan.description || '';
+    document.getElementById('subscriptionFeatures').value = (plan.features || []).join(', ');
+    document.getElementById('subscriptionActive').checked = plan.isActive === 1;
+}
+
+async function saveSubscription(e) {
+    e.preventDefault();
+    
+    const token = localStorage.getItem('token');
+    const subscriptionId = document.getElementById('subscriptionId').value;
+    const isEditing = subscriptionId !== '';
+    
+    const features = document.getElementById('subscriptionFeatures').value
+        .split(',')
+        .map(f => f.trim())
+        .filter(f => f);
+    
+    const planData = {
+        name: document.getElementById('subscriptionName').value,
+        description: document.getElementById('subscriptionDescription').value,
+        duration: document.getElementById('subscriptionDuration').value,
+        price: parseFloat(document.getElementById('subscriptionPrice').value),
+        mealsPerDay: parseInt(document.getElementById('subscriptionMealsPerDay').value),
+        features: features,
+        isActive: document.getElementById('subscriptionActive').checked ? 1 : 0
+    };
+    
+    try {
+        const url = isEditing 
+            ? `/api/subscriptions/plans/${subscriptionId}`
+            : '/api/subscriptions/plans';
+        
+        const response = await fetch(url, {
+            method: isEditing ? 'PUT' : 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(planData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert(isEditing ? 'Plan updated!' : 'Plan created!', 'success');
+            hideSubscriptionForm();
+            loadAdminSubscriptions();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (error) {
+        showAlert('Failed to save subscription plan', 'error');
+    }
+}
+
+async function deleteSubscription(id) {
+    if (!confirm('Are you sure you want to delete this subscription plan?')) return;
+    
+    const token = localStorage.getItem('token');
+    
+    try {
+        const response = await fetch(`/api/subscriptions/plans/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert('Subscription plan deleted!', 'success');
+            loadAdminSubscriptions();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (error) {
+        showAlert('Failed to delete subscription plan', 'error');
+    }
+}
+
+// ===== CATERING MANAGEMENT =====
+
+async function loadAdminCatering() {
+    const token = localStorage.getItem('token');
+    
+    try {
+        const response = await fetch('/api/catering/all', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        const container = document.getElementById('catering-list');
+        
+        if (data.success && data.packages.length > 0) {
+            container.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Package Name</th>
+                            <th>Type</th>
+                            <th>Guest Range</th>
+                            <th>Price/Person</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.packages.map(pkg => `
+                            <tr>
+                                <td><strong>${pkg.name}</strong></td>
+                                <td>${pkg.type}</td>
+                                <td>${pkg.minGuests}${pkg.maxGuests ? `-${pkg.maxGuests}` : '+'} guests</td>
+                                <td>₹${pkg.pricePerPerson}</td>
+                                <td><span class="badge badge-${pkg.isActive ? 'success' : 'secondary'}">${pkg.isActive ? 'Active' : 'Inactive'}</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-primary" onclick='editCatering(${JSON.stringify(pkg).replace(/'/g, "&#39;")})'>Edit</button>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteCatering(${pkg.id})">Delete</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        } else {
+            container.innerHTML = '<p>No catering packages yet. Add your first package!</p>';
+        }
+    } catch (error) {
+        showAlert('Failed to load catering packages', 'error');
+    }
+}
+
+function showAddCateringForm() {
+    document.getElementById('catering-form').style.display = 'block';
+    document.getElementById('catering-form-title').textContent = 'Add New Catering Package';
+    document.getElementById('catering-submit-btn').textContent = 'Add Package';
+    document.getElementById('addCateringForm').reset();
+    document.getElementById('cateringId').value = '';
+    document.getElementById('cateringActive').checked = true;
+}
+
+function hideCateringForm() {
+    document.getElementById('catering-form').style.display = 'none';
+    document.getElementById('addCateringForm').reset();
+}
+
+function editCatering(pkg) {
+    document.getElementById('catering-form').style.display = 'block';
+    document.getElementById('catering-form-title').textContent = 'Edit Catering Package';
+    document.getElementById('catering-submit-btn').textContent = 'Update Package';
+    document.getElementById('cateringId').value = pkg.id;
+    document.getElementById('cateringName').value = pkg.name;
+    document.getElementById('cateringPrice').value = pkg.pricePerPerson;
+    document.getElementById('cateringType').value = pkg.type;
+    document.getElementById('cateringMinGuests').value = pkg.minGuests;
+    document.getElementById('cateringMaxGuests').value = pkg.maxGuests || '';
+    document.getElementById('cateringDescription').value = pkg.description || '';
+    document.getElementById('cateringMenuItems').value = (pkg.menuItems || []).join(', ');
+    document.getElementById('cateringFeatures').value = (pkg.features || []).join(', ');
+    document.getElementById('cateringActive').checked = pkg.isActive === 1;
+}
+
+async function saveCatering(e) {
+    e.preventDefault();
+    
+    const token = localStorage.getItem('token');
+    const cateringId = document.getElementById('cateringId').value;
+    const isEditing = cateringId !== '';
+    
+    const menuItems = document.getElementById('cateringMenuItems').value
+        .split(',')
+        .map(f => f.trim())
+        .filter(f => f);
+    
+    const features = document.getElementById('cateringFeatures').value
+        .split(',')
+        .map(f => f.trim())
+        .filter(f => f);
+    
+    const maxGuests = document.getElementById('cateringMaxGuests').value;
+    
+    const packageData = {
+        name: document.getElementById('cateringName').value,
+        description: document.getElementById('cateringDescription').value,
+        type: document.getElementById('cateringType').value,
+        minGuests: parseInt(document.getElementById('cateringMinGuests').value),
+        maxGuests: maxGuests ? parseInt(maxGuests) : null,
+        pricePerPerson: parseFloat(document.getElementById('cateringPrice').value),
+        menuItems: menuItems,
+        features: features,
+        isActive: document.getElementById('cateringActive').checked ? 1 : 0
+    };
+    
+    try {
+        const url = isEditing 
+            ? `/api/catering/${cateringId}`
+            : '/api/catering/';
+        
+        const response = await fetch(url, {
+            method: isEditing ? 'PUT' : 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(packageData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert(isEditing ? 'Package updated!' : 'Package created!', 'success');
+            hideCateringForm();
+            loadAdminCatering();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (error) {
+        showAlert('Failed to save catering package', 'error');
+    }
+}
+
+async function deleteCatering(id) {
+    if (!confirm('Are you sure you want to delete this catering package?')) return;
+    
+    const token = localStorage.getItem('token');
+    
+    try {
+        const response = await fetch(`/api/catering/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert('Catering package deleted!', 'success');
+            loadAdminCatering();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (error) {
+        showAlert('Failed to delete catering package', 'error');
+    }
+}
+
+// ===== EVENT MANAGEMENT =====
+
+async function loadAdminEvents() {
+    const token = localStorage.getItem('token');
+    
+    try {
+        const response = await fetch('/api/events/packages/all', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        const container = document.getElementById('events-list');
+        
+        if (data.success && data.packages.length > 0) {
+            container.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Package Name</th>
+                            <th>Event Type</th>
+                            <th>Capacity</th>
+                            <th>Price</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.packages.map(pkg => `
+                            <tr>
+                                <td><strong>${pkg.name}</strong></td>
+                                <td>${pkg.eventType}</td>
+                                <td>${pkg.capacity} guests</td>
+                                <td>₹${pkg.price}</td>
+                                <td><span class="badge badge-${pkg.isActive ? 'success' : 'secondary'}">${pkg.isActive ? 'Active' : 'Inactive'}</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-primary" onclick='editEvent(${JSON.stringify(pkg).replace(/'/g, "&#39;")})'>Edit</button>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteEvent(${pkg.id})">Delete</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        } else {
+            container.innerHTML = '<p>No event packages yet. Add your first package!</p>';
+        }
+    } catch (error) {
+        showAlert('Failed to load event packages', 'error');
+    }
+}
+
+function showAddEventForm() {
+    document.getElementById('event-form').style.display = 'block';
+    document.getElementById('event-form-title').textContent = 'Add New Event Package';
+    document.getElementById('event-submit-btn').textContent = 'Add Package';
+    document.getElementById('addEventForm').reset();
+    document.getElementById('eventId').value = '';
+    document.getElementById('eventActive').checked = true;
+}
+
+function hideEventForm() {
+    document.getElementById('event-form').style.display = 'none';
+    document.getElementById('addEventForm').reset();
+}
+
+function editEvent(pkg) {
+    document.getElementById('event-form').style.display = 'block';
+    document.getElementById('event-form-title').textContent = 'Edit Event Package';
+    document.getElementById('event-submit-btn').textContent = 'Update Package';
+    document.getElementById('eventId').value = pkg.id;
+    document.getElementById('eventName').value = pkg.name;
+    document.getElementById('eventPrice').value = pkg.price;
+    document.getElementById('eventType').value = pkg.eventType;
+    document.getElementById('eventCapacity').value = pkg.capacity;
+    document.getElementById('eventDuration').value = pkg.duration || '';
+    document.getElementById('eventVenue').value = pkg.venue || '';
+    document.getElementById('eventDescription').value = pkg.description || '';
+    document.getElementById('eventInclusions').value = (pkg.inclusions || []).join(', ');
+    document.getElementById('eventActive').checked = pkg.isActive === 1;
+}
+
+async function saveEvent(e) {
+    e.preventDefault();
+    
+    const token = localStorage.getItem('token');
+    const eventId = document.getElementById('eventId').value;
+    const isEditing = eventId !== '';
+    
+    const inclusions = document.getElementById('eventInclusions').value
+        .split(',')
+        .map(f => f.trim())
+        .filter(f => f);
+    
+    const packageData = {
+        name: document.getElementById('eventName').value,
+        description: document.getElementById('eventDescription').value,
+        eventType: document.getElementById('eventType').value,
+        capacity: parseInt(document.getElementById('eventCapacity').value),
+        price: parseFloat(document.getElementById('eventPrice').value),
+        duration: document.getElementById('eventDuration').value,
+        venue: document.getElementById('eventVenue').value,
+        inclusions: inclusions,
+        isActive: document.getElementById('eventActive').checked ? 1 : 0
+    };
+    
+    try {
+        const url = isEditing 
+            ? `/api/events/packages/${eventId}`
+            : '/api/events/packages';
+        
+        const response = await fetch(url, {
+            method: isEditing ? 'PUT' : 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(packageData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert(isEditing ? 'Package updated!' : 'Package created!', 'success');
+            hideEventForm();
+            loadAdminEvents();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (error) {
+        showAlert('Failed to save event package', 'error');
+    }
+}
+
+async function deleteEvent(id) {
+    if (!confirm('Are you sure you want to delete this event package?')) return;
+    
+    const token = localStorage.getItem('token');
+    
+    try {
+        const response = await fetch(`/api/events/packages/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert('Event package deleted!', 'success');
+            loadAdminEvents();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (error) {
+        showAlert('Failed to delete event package', 'error');
+    }
+}
+
+loadAdminData();
+</script>
+{% endblock %}

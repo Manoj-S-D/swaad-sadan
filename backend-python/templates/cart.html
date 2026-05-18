@@ -1,0 +1,422 @@
+{% extends 'base.html' %}
+{% block title %}Cart - SWAAD SADAN{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="section-heading">
+        <h2>Your Cart</h2>
+        <p>Review your items</p>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+        <div>
+            <div id="cart-items"></div>
+        </div>
+        
+        <div>
+            <div class="card">
+                <h3>Order Summary</h3>
+                <div style="margin: 1.5rem 0; padding: 1.5rem 0; border-top: 2px solid #EEE; border-bottom: 2px solid #EEE;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span>Subtotal:</span>
+                        <span id="cart-subtotal">₹0</span>
+                    </div>
+                    <div id="delivery-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span>Delivery:</span>
+                        <span id="cart-delivery">₹30</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span>Packing:</span>
+                        <span id="cart-packing">₹10</span>
+                    </div>
+                    <div id="discount-row" style="display: none; justify-content: space-between; margin-bottom: 0.5rem; color: green;">
+                        <span>Discount:</span>
+                        <span id="cart-discount">-₹0</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 1.3rem; font-weight: bold; color: var(--primary);">
+                        <span>Total:</span>
+                        <span id="cart-total">₹0</span>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Order Type</label>
+                    <select class="form-control" id="orderType" onchange="updateOrderSummary()">
+                        <option value="delivery">Delivery</option>
+                        <option value="pickup">Pickup</option>
+                    </select>
+                </div>
+                
+                <div id="addressSection" class="form-group">
+                    <label>Delivery Address</label>
+                    <textarea class="form-control" id="deliveryAddress" rows="3" placeholder="Enter your full address"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Have a Coupon Code?</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" class="form-control" id="couponCode" placeholder="Enter code" style="text-transform: uppercase;">
+                        <button class="btn btn-primary" onclick="applyCoupon()" style="white-space: nowrap;">Apply</button>
+                    </div>
+                    <div id="coupon-message" style="margin-top: 0.5rem; font-size: 0.9rem;"></div>
+                </div>
+                
+                <div class="form-group" id="points-section">
+                    <label>Loyalty Points</label>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <span style="font-size: 0.9rem;">Available: <strong id="available-points">0</strong> points</span>
+                        <button class="btn btn-secondary" onclick="usePoints()" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">Use Points</button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Payment Method</label>
+                    <select class="form-control" id="paymentMethod">
+                        <option value="COD">Cash on Delivery (COD)</option>
+                        <option value="ONLINE">Pay Online (Razorpay)</option>
+                    </select>
+                </div>
+                
+                <button class="btn btn-success" style="width: 100%;" onclick="proceedToCheckout()">
+                    Proceed to Checkout
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.cart-item {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.cart-item-info h4 {
+    margin-bottom: 0.5rem;
+}
+.cart-item-price {
+    color: var(--primary);
+    font-weight: bold;
+}
+.cart-item-controls {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+.cart-item-controls button {
+    padding: 0.5rem 1rem;
+    border: none;
+    background: var(--primary);
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.cart-item-controls input {
+    width: 60px;
+    text-align: center;
+    padding: 0.5rem;
+    border: 1px solid #DDD;
+    border-radius: 4px;
+}
+.btn-remove {
+    background: #DC3545 !important;
+}
+.empty-cart {
+    text-align: center;
+    padding: 3rem;
+    color: #999;
+}
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let appliedCoupon = null;
+let appliedDiscount = 0;
+let pointsUsed = 0;
+let availablePoints = 0;
+
+async function loadUserPoints() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    try {
+        const response = await fetch('/api/loyalty/my-points', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        if (data.success) {
+            availablePoints = data.points.points || 0;
+            document.getElementById('available-points').textContent = availablePoints;
+        }
+    } catch (error) {
+        console.error('Failed to load points:', error);
+    }
+}
+
+function updateOrderSummary() {
+    const cart = JSON.parse(localStorage.getItem('cart')) || [];
+    const orderType = document.getElementById('orderType').value;
+    
+    // Show/hide address field
+    document.getElementById('addressSection').style.display = orderType === 'delivery' ? 'block' : 'none';
+    
+    if (cart.length === 0) {
+        document.getElementById('cart-subtotal').textContent = '₹0';
+        document.getElementById('cart-delivery').textContent = '₹0';
+        document.getElementById('cart-packing').textContent = '₹0';
+        document.getElementById('cart-total').textContent = '₹0';
+        return;
+    }
+    
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    
+    // Delivery charge - only for delivery, free if subtotal >= 500
+    let deliveryCharge = 0;
+    if (orderType === 'delivery') {
+        deliveryCharge = subtotal >= 500 ? 0 : 30;
+        document.getElementById('delivery-row').style.display = 'flex';
+    } else {
+        document.getElementById('delivery-row').style.display = 'none';
+    }
+    
+    // Packing charge - always applies
+    const packingCharge = 10;
+    
+    // Total before discount
+    let totalBeforeDiscount = subtotal + deliveryCharge + packingCharge;
+    
+    // Apply discount
+    let finalDiscount = appliedDiscount + pointsUsed;
+    if (finalDiscount > totalBeforeDiscount) {
+        finalDiscount = totalBeforeDiscount;
+    }
+    
+    const total = totalBeforeDiscount - finalDiscount;
+    
+    document.getElementById('cart-subtotal').textContent = `₹${subtotal}`;
+    document.getElementById('cart-delivery').textContent = deliveryCharge === 0 ? 'FREE' : `₹${deliveryCharge}`;
+    document.getElementById('cart-packing').textContent = `₹${packingCharge}`;
+    
+    if (finalDiscount > 0) {
+        document.getElementById('discount-row').style.display = 'flex';
+        document.getElementById('cart-discount').textContent = `-₹${finalDiscount}`;
+    } else {
+        document.getElementById('discount-row').style.display = 'none';
+    }
+    
+    document.getElementById('cart-total').textContent = `₹${total}`;
+}
+
+function renderCart() {
+    const cart = JSON.parse(localStorage.getItem('cart')) || [];
+    const container = document.getElementById('cart-items');
+    
+    if (cart.length === 0) {
+        container.innerHTML = '<div class="empty-cart">Your cart is empty<br><a href="/menu" class="btn btn-primary" style="margin-top: 1rem;">Browse Menu</a></div>';
+        updateOrderSummary();
+        return;
+    }
+    
+    container.innerHTML = cart.map(item => `
+        <div class="cart-item">
+            <div class="cart-item-info">
+                <h4>${item.name}</h4>
+                <p class="cart-item-price">₹${item.price} × ${item.quantity}</p>
+            </div>
+            <div class="cart-item-controls">
+                <button onclick="updateQuantity(${item.id}, ${item.quantity - 1})">-</button>
+                <input type="number" value="${item.quantity}" min="1" onchange="updateQuantity(${item.id}, this.value)">
+                <button onclick="updateQuantity(${item.id}, ${item.quantity + 1})">+</button>
+                <button class="btn-remove" onclick="removeFromCart(${item.id})">Remove</button>
+            </div>
+        </div>
+    `).join('');
+    
+    updateOrderSummary();
+}
+
+async function applyCoupon() {
+    const code = document.getElementById('couponCode').value.toUpperCase();
+    const token = localStorage.getItem('token');
+    
+    if (!code) {
+        showCouponMessage('Please enter a coupon code', 'error');
+        return;
+    }
+    
+    if (!token) {
+        showCouponMessage('Please login to use coupons', 'error');
+        return;
+    }
+    
+    const cart = JSON.parse(localStorage.getItem('cart')) || [];
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const orderType = document.getElementById('orderType').value;
+    const deliveryCharge = orderType === 'delivery' && subtotal < 500 ? 30 : 0;
+    const packingCharge = 10;
+    const orderTotal = subtotal + deliveryCharge + packingCharge;
+    
+    try {
+        const response = await fetch('/api/coupons/validate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ code: code, orderTotal: orderTotal })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            appliedCoupon = data.coupon;
+            appliedDiscount = data.discount;
+            showCouponMessage(`Coupon applied! You saved ₹${data.discount}`, 'success');
+            updateOrderSummary();
+        } else {
+            showCouponMessage(data.message, 'error');
+        }
+    } catch (error) {
+        showCouponMessage('Failed to apply coupon', 'error');
+    }
+}
+
+function showCouponMessage(message, type) {
+    const messageDiv = document.getElementById('coupon-message');
+    messageDiv.textContent = message;
+    messageDiv.style.color = type === 'success' ? 'green' : 'red';
+}
+
+async function usePoints() {
+    if (availablePoints === 0) {
+        showAlert('You have no loyalty points available', 'error');
+        return;
+    }
+    
+    const cart = JSON.parse(localStorage.getItem('cart')) || [];
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const orderType = document.getElementById('orderType').value;
+    const deliveryCharge = orderType === 'delivery' && subtotal < 500 ? 30 : 0;
+    const packingCharge = 10;
+    const orderTotal = subtotal + deliveryCharge + packingCharge - appliedDiscount;
+    
+    // Use minimum of available points or order total
+    pointsUsed = Math.min(availablePoints, Math.floor(orderTotal));
+    
+    showAlert(`Using ${pointsUsed} points (₹${pointsUsed} discount)`, 'success');
+    updateOrderSummary();
+}
+
+async function proceedToCheckout() {
+    const cart = JSON.parse(localStorage.getItem('cart')) || [];
+    const user = JSON.parse(localStorage.getItem('user'));
+    const token = localStorage.getItem('token');
+    
+    if (!user || !token) {
+        showAlert('Please login to place an order', 'error');
+        setTimeout(() => window.location.href = '/login', 1500);
+        return;
+    }
+    
+    if (cart.length === 0) {
+        showAlert('Your cart is empty', 'error');
+        return;
+    }
+    
+    const orderType = document.getElementById('orderType').value;
+    const deliveryAddress = document.getElementById('deliveryAddress').value;
+    const paymentMethod = document.getElementById('paymentMethod').value;
+    
+    if (orderType === 'delivery' && !deliveryAddress) {
+        showAlert('Please enter delivery address', 'error');
+        return;
+    }
+    
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const items = cart.map(item => ({
+        productId: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity
+    }));
+    
+    // Calculate total for payment
+    const orderTypeValue = document.getElementById('orderType').value;
+    const deliveryCharge = orderTypeValue === 'delivery' && subtotal < 500 ? 30 : 0;
+    const packingCharge = 10;
+    const totalAmount = subtotal + deliveryCharge + packingCharge - appliedDiscount - pointsUsed;
+    
+    const orderData = {
+        items: items,
+        orderType: orderType,
+        deliveryAddress: deliveryAddress,
+        couponCode: appliedCoupon ? appliedCoupon.code : null,
+        pointsToRedeem: pointsUsed,
+        paymentMethod: paymentMethod,
+        user: user.id
+    };
+    
+    // Handle payment method
+    if (paymentMethod === 'ONLINE') {
+        // Initiate Razorpay payment
+        const paymentSuccess = await initiatePayment(totalAmount, {
+            description: 'Food Order Payment',
+            onSuccess: async (paymentId) => {
+                // Payment verified, now create the order
+                orderData.paymentId = paymentId;
+                orderData.paymentStatus = 'paid';
+                await createOrder(orderData);
+            },
+            onFailure: () => {
+                showAlert('Payment failed. Please try again.', 'error');
+            }
+        });
+        
+        // Payment process initiated, no need to continue
+        return;
+    } else {
+        // COD - create order directly
+        orderData.paymentStatus = 'pending';
+        await createOrder(orderData);
+    }
+}
+
+async function createOrder(orderData) {
+    const token = localStorage.getItem('token');
+    
+    try {
+        const response = await fetch('/api/orders', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(orderData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            localStorage.removeItem('cart');
+            updateCartCount();
+            showAlert('Order placed successfully!', 'success');
+            setTimeout(() => window.location.href = '/my-orders', 1500);
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (error) {
+        showAlert('Failed to place order', 'error');
+    }
+}
+
+// Initialize
+loadUserPoints();
+renderCart();
+</script>
+{% endblock %}

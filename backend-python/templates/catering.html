@@ -1,0 +1,257 @@
+{% extends 'base.html' %}
+{% block title %}Catering Services - SWAAD SADAN{% endblock %}
+{% block content %}
+<section class="hero" style="padding: 3rem 20px;">
+    <h1>Catering Services</h1>
+    <p>Bulk orders for events, functions & parties</p>
+</section>
+
+<div class="container">
+    <!-- User's Requests Section (if logged in) -->
+    <div id="my-requests-section" style="display: none; margin-bottom: 3rem;">
+        <h2 style="color: var(--primary); margin-bottom: 1.5rem;">My Catering Requests</h2>
+        <div id="my-requests-list"></div>
+    </div>
+
+    <!-- Available Packages -->
+    <div style="margin-bottom: 3rem;">
+        <h2 style="color: var(--primary); text-align: center; margin-bottom: 2rem;">Our Catering Packages</h2>
+        <div id="packages-list" class="grid grid-3"></div>
+    </div>
+
+    <!-- Request Form -->
+    <div class="card" style="max-width: 800px; margin: 0 auto;">
+        <h2 style="text-align: center; color: var(--primary); margin-bottom: 2rem;">Request a Catering Service</h2>
+        
+        <form id="cateringForm" onsubmit="submitCateringRequest(event)">
+            <div class="form-group">
+                <label>Select Package</label>
+                <select class="form-control" id="packageId">
+                    <option value="">Custom Request (No Package)</option>
+                </select>
+                <small style="color: #666;">Or leave blank for custom requirements</small>
+            </div>
+
+            <div class="grid grid-2" style="gap: 1.5rem;">
+                <div class="form-group">
+                    <label>Event Type *</label>
+                    <select class="form-control" id="eventType" required>
+                        <option value="">Select event type</option>
+                        <option value="Wedding">Wedding</option>
+                        <option value="Corporate">Corporate Event</option>
+                        <option value="Birthday">Birthday Party</option>
+                        <option value="Religious">Religious Ceremony</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Number of Guests *</label>
+                    <input type="number" class="form-control" id="guests" min="10" required>
+                </div>
+            </div>
+            
+            <div class="grid grid-2" style="gap: 1.5rem;">
+                <div class="form-group">
+                    <label>Event Date *</label>
+                    <input type="date" class="form-control" id="eventDate" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Event Time *</label>
+                    <input type="time" class="form-control" id="eventTime" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Venue/Location *</label>
+                <input type="text" class="form-control" id="venue" placeholder="Enter event location" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Menu Preferences</label>
+                <textarea class="form-control" id="menuPreferences" rows="3" placeholder="Any specific items you want? Veg/Non-veg? Dietary restrictions?"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>Special Requirements</label>
+                <textarea class="form-control" id="requirements" rows="3" placeholder="Any other requirements or details we should know?"></textarea>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Submit Request</button>
+        </form>
+    </div>
+    
+    <div class="grid grid-3" style="margin-top: 4rem;">
+        <div class="card">
+            <div class="card-icon">👨‍🍳</div>
+            <h3>Expert Chefs</h3>
+            <p>Experienced team for perfect taste</p>
+        </div>
+        <div class="card">
+            <div class="card-icon">✅</div>
+            <h3>Quality Assured</h3>
+            <p>Fresh ingredients, hygienic cooking</p>
+        </div>
+        <div class="card">
+            <div class="card-icon">💰</div>
+            <h3>Competitive Pricing</h3>
+            <p>Best rates for bulk orders</p>
+        </div>
+    </div>
+</div>
+
+<script>
+// Load packages and user requests on page load
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadCateringPackages();
+    await loadMyRequests();
+    
+    // Set minimum date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('eventDate').min = today;
+});
+
+async function loadCateringPackages() {
+    try {
+        const response = await fetch('/api/catering/packages');
+        const data = await response.json();
+        
+        if (data.success) {
+            // Populate package dropdown
+            const packageSelect = document.getElementById('packageId');
+            data.packages.forEach(pkg => {
+                const option = document.createElement('option');
+                option.value = pkg.id;
+                option.textContent = `${pkg.name} - ₹${pkg.pricePerPerson}/person`;
+                packageSelect.appendChild(option);
+            });
+            
+            // Display packages as cards
+            const packagesList = document.getElementById('packages-list');
+            packagesList.innerHTML = data.packages.map(pkg => `
+                <div class="card">
+                    <h3>${pkg.name}</h3>
+                    <p style="color: var(--primary); font-size: 1.5rem; font-weight: bold;">₹${pkg.pricePerPerson}/person</p>
+                    <p><strong>Serves:</strong> ${pkg.minGuests}-${pkg.maxGuests} guests</p>
+                    <p style="font-size: 0.9rem; color: #666;">${pkg.menuItems || 'Custom menu available'}</p>
+                    <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="selectPackage(${pkg.id})">Select Package</button>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Error loading packages:', error);
+    }
+}
+
+function selectPackage(packageId) {
+    document.getElementById('packageId').value = packageId;
+    document.querySelector('#cateringForm').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function loadMyRequests() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    try {
+        const response = await fetch('/api/requests/my-requests', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        if (data.success && data.requests.length > 0) {
+            const cateringRequests = data.requests.filter(r => r.serviceType === 'catering');
+            
+            if (cateringRequests.length > 0) {
+                document.getElementById('my-requests-section').style.display = 'block';
+                document.getElementById('my-requests-list').innerHTML = cateringRequests.map(req => `
+                    <div class="card" style="margin-bottom: 1rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div>
+                                <h3>${req.requestNumber}</h3>
+                                <p><strong>Event:</strong> ${req.requestData.eventType} | <strong>Guests:</strong> ${req.requestData.guests}</p>
+                                <p><strong>Date:</strong> ${new Date(req.scheduledDate).toLocaleDateString()} at ${req.scheduledTime}</p>
+                                <p><strong>Status:</strong> <span class="badge badge-${req.status}">${req.status.toUpperCase()}</span></p>
+                            </div>
+                            <button class="btn btn-secondary" onclick="viewRequestDetails(${req.id})">View Details</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+    } catch (error) {
+        console.error('Error loading requests:', error);
+    }
+}
+
+async function submitCateringRequest(e) {
+    e.preventDefault();
+    
+    const token = localStorage.getItem('token');
+    if (!token) {
+        showAlert('Please login to submit a request', 'error');
+        setTimeout(() => window.location.href = '/login', 1500);
+        return;
+    }
+    
+    const packageId = document.getElementById('packageId').value;
+    const guests = parseInt(document.getElementById('guests').value);
+    
+    // Calculate estimated amount based on package
+    let estimatedAmount = 0;
+    if (packageId) {
+        const packageSelect = document.getElementById('packageId');
+        const selectedOption = packageSelect.options[packageSelect.selectedIndex];
+        const priceMatch = selectedOption.textContent.match(/₹(\d+)/);
+        if (priceMatch) {
+            const pricePerPerson = parseInt(priceMatch[1]);
+            estimatedAmount = pricePerPerson * guests;
+        }
+    }
+    
+    const requestData = {
+        serviceType: 'catering',
+        packageId: packageId || null,
+        scheduledDate: document.getElementById('eventDate').value,
+        scheduledTime: document.getElementById('eventTime').value,
+        totalAmount: estimatedAmount,
+        requestData: {
+            eventType: document.getElementById('eventType').value,
+            guests: guests,
+            venue: document.getElementById('venue').value,
+            menuPreferences: document.getElementById('menuPreferences').value,
+            specialRequirements: document.getElementById('requirements').value
+        },
+        notes: document.getElementById('requirements').value
+    };
+    
+    try {
+        const response = await fetch('/api/requests/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(requestData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert(`Request ${data.requestNumber} submitted successfully! We will contact you soon.`, 'success');
+            document.getElementById('cateringForm').reset();
+            await loadMyRequests();
+        } else {
+            showAlert(data.message || 'Failed to submit request', 'error');
+        }
+    } catch (error) {
+        console.error('Error submitting request:', error);
+        showAlert('Error submitting request. Please try again.', 'error');
+    }
+}
+
+async function viewRequestDetails(requestId) {
+    window.location.href = `/request-details?id=${requestId}`;
+}
+</script>
+{% endblock %}

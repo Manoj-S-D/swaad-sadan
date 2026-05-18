@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% block title %}Health Box - SWAAD SADAN{% endblock %}
+{% block content %}
+<section class="hero" style="padding: 3rem 20px;">
+    <h1>Health Box 💪</h1>
+    <p>Customized meals for fitness enthusiasts</p>
+    <p style="font-size: 1rem; margin-top: 1rem; background: rgba(255,255,255,0.2); padding: 0.5rem; border-radius: 8px;">
+        <strong>Note:</strong> Non-veg options available • Cooked in separate kitchen • Separate utensils used
+    </p>
+</section>
+
+<div class="container">
+    <div class="grid grid-2">
+        <div class="card" style="border: 3px solid var(--success);">
+            <div class="card-icon">🥗</div>
+            <h3>Veg Health Box</h3>
+            <p style="font-size: 1.8rem; color: var(--success); font-weight: bold; margin: 1rem 0;">₹200/box</p>
+            <ul style="text-align: left;">
+                <li>High protein veg meal</li>
+                <li>Brown rice/Quinoa option</li>
+                <li>Paneer/Tofu/Sprouts</li>
+                <li>Fresh salad</li>
+                <li>Measured portions</li>
+                <li>Macro details provided</li>
+            </ul>
+            <button class="btn btn-success" style="width: 100%; margin-top: 1rem;" onclick="customizeBox('veg')">Customize Veg Box</button>
+        </div>
+
+        <div class="card" style="border: 3px solid #E74C3C;">
+            <div class="card-icon">🍗</div>
+            <h3>Non-Veg Health Box</h3>
+            <p style="font-size: 1.8rem; color: #E74C3C; font-weight: bold; margin: 1rem 0;">₹280/box</p>
+            <ul style="text-align: left;">
+                <li>High protein non-veg meal</li>
+                <li>Chicken/Fish options</li>
+                <li>Brown rice/Roti</li>
+                <li>Steamed vegetables</li>
+                <li>Measured portions</li>
+                <li>Macro details provided</li>
+            </ul>
+            <p style="background: #FFF3E0; padding: 0.5rem; border-radius: 4px; font-size: 0.85rem; margin-top: 1rem;">
+                ⚠️ Cooked separately in different kitchen with separate tools
+            </p>
+            <button class="btn btn-primary" style="width: 100%; margin-top: 1rem; background: #E74C3C;" onclick="customizeBox('nonveg')">Customize Non-Veg Box</button>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top: 3rem; background: linear-gradient(135deg, #E8F5E9, #C8E6C9);">
+        <h3 style="text-align: center; color: var(--success);">Subscription Plans</h3>
+        <div class="grid grid-3" style="margin-top: 2rem;">
+            <div style="text-align: center; padding: 1.5rem; background: white; border-radius: 8px;">
+                <h4>Daily</h4>
+                <p style="font-size: 1.5rem; font-weight: bold; color: var(--success);">₹200</p>
+                <p>1 meal per day</p>
+            </div>
+            <div style="text-align: center; padding: 1.5rem; background: white; border-radius: 8px;">
+                <h4>Weekly</h4>
+                <p style="font-size: 1.5rem; font-weight: bold; color: var(--success);">₹1,300</p>
+                <p>Save ₹100!</p>
+            </div>
+            <div style="text-align: center; padding: 1.5rem; background: white; border-radius: 8px;">
+                <h4>Monthly</h4>
+                <p style="font-size: 1.5rem; font-weight: bold; color: var(--success);">₹5,000</p>
+                <p>Save ₹1,000!</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top: 2rem;">
+        <h3 style="text-align: center; margin-bottom: 2rem;">What's Included?</h3>
+        <div class="grid grid-4">
+            <div style="text-align: center;">
+                <div style="font-size: 3rem;">📊</div>
+                <strong>Macro Details</strong>
+                <p>Protein, Carbs, Fats</p>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 3rem;">⚖️</div>
+                <strong>Portion Control</strong>
+                <p>Measured servings</p>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 3rem;">🎯</div>
+                <strong>Goal Based</strong>
+                <p>Weight loss/gain/maintain</p>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 3rem;">🚚</div>
+                <strong>Delivery</strong>
+                <p>Fresh to your door</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function customizeBox(type) {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) {
+        showAlert('Please login to customize your health box', 'error');
+        setTimeout(() => window.location.href = '/login', 1500);
+        return;
+    }
+    
+    const message = type === 'veg' 
+        ? 'Health Box (Veg) customization request received! We will contact you to discuss your fitness goals and meal preferences.'
+        : 'Health Box (Non-Veg) customization request received! We will contact you to discuss your fitness goals and meal preferences. Note: Cooked separately in different kitchen.';
+    
+    showAlert(message, 'success');
+}
+</script>
+{% endblock %}
