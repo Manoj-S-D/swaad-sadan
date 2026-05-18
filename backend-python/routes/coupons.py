@@ -219,11 +219,18 @@ def delete_coupon(coupon_id):
 
 def record_coupon_usage(coupon_id, user_id, order_id, discount_amount):
     """Record coupon usage when order is placed"""
+    db = None
     try:
         db = get_db()
         cursor = db.cursor()
         
         print(f"📝 Recording coupon usage - Coupon ID: {coupon_id}, User ID: {user_id}, Order ID: {order_id}, Discount: ₹{discount_amount}")
+        
+        # First, get current usedCount
+        cursor.execute('SELECT code, usedCount FROM coupons WHERE id = ?', (coupon_id,))
+        before = cursor.fetchone()
+        if before:
+            print(f"📊 BEFORE: Coupon '{before['code']}' usedCount = {before['usedCount']}")
         
         # Record usage in coupon_usage table
         cursor.execute('''
@@ -231,27 +238,42 @@ def record_coupon_usage(coupon_id, user_id, order_id, discount_amount):
             VALUES (?, ?, ?, ?)
         ''', (coupon_id, user_id, order_id, discount_amount))
         
-        print(f"✅ Coupon usage record inserted successfully")
+        print(f"✅ Coupon usage record inserted into coupon_usage table")
         
         # Increment used count in coupons table
         cursor.execute('''
             UPDATE coupons SET usedCount = usedCount + 1 WHERE id = ?
         ''', (coupon_id,))
         
-        # Verify the update
-        cursor.execute('SELECT usedCount FROM coupons WHERE id = ?', (coupon_id,))
-        result = cursor.fetchone()
-        if result:
-            print(f"✅ Coupon usedCount incremented successfully. New count: {result['usedCount']}")
+        print(f"✅ UPDATE query executed")
         
+        # Commit the transaction
         db.commit()
+        print(f"✅ Database commit successful")
+        
+        # Verify the update AFTER commit
+        cursor.execute('SELECT code, usedCount FROM coupons WHERE id = ?', (coupon_id,))
+        after = cursor.fetchone()
+        if after:
+            print(f"📊 AFTER: Coupon '{after['code']}' usedCount = {after['usedCount']}")
+            if after['usedCount'] == before['usedCount']:
+                print(f"❌ WARNING: usedCount did NOT increment! Still at {after['usedCount']}")
+            else:
+                print(f"✅ usedCount successfully incremented from {before['usedCount']} to {after['usedCount']}")
+        
         db.close()
         
-        print(f"✅ Coupon usage recorded and committed to database")
+        print(f"✅ Coupon usage recording completed successfully")
         return True
         
     except Exception as e:
         print(f"❌ Error recording coupon usage: {e}")
         import traceback
         traceback.print_exc()
+        if db:
+            try:
+                db.rollback()
+                db.close()
+            except:
+                pass
         return False

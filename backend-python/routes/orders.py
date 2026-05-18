@@ -134,14 +134,20 @@ def create_order():
         
         order_id = Order.create(order_data)
         
+        # Debug: Log coupon information
+        print(f"🔍 DEBUG - Order {order_id} created. Coupon ID: {coupon_id}, Coupon Discount: {coupon_discount}, Coupon Code: {data.get('couponCode')}")
+        
         # Record coupon usage if coupon was used
         if coupon_id and coupon_discount > 0:
+            print(f"📊 Attempting to record coupon usage for coupon ID {coupon_id}")
             from routes.coupons import record_coupon_usage
             success = record_coupon_usage(coupon_id, user_id, order_id, coupon_discount)
             if success:
                 print(f"✅ Coupon {data.get('couponCode')} usage recorded successfully. Order ID: {order_id}")
             else:
                 print(f"❌ Failed to record coupon usage for {data.get('couponCode')}")
+        else:
+            print(f"⚠️  Coupon usage NOT recorded - coupon_id: {coupon_id}, coupon_discount: {coupon_discount}")
         
         order = Order.find_by_id(order_id)
         
