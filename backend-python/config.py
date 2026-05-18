@@ -8,9 +8,8 @@ class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
     FLASK_ENV = os.getenv('FLASK_ENV', 'development')
     
-    # Database - supports both SQLite and PostgreSQL
-    DATABASE_URL = os.getenv('DATABASE_URL')  # PostgreSQL (production)
-    DATABASE_PATH = os.getenv('DATABASE_PATH', 'swaad_sadan.db')  # SQLite (local)
+    # PostgreSQL Database
+    DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://swaad_sadan_user:lWZIgIDhWCs3nIzklYlE7FSLcp2IzGXT@dpg-d85ctlbtqb8s73fu1rkg-a/swaad_sadan')
     
     # JWT
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key')
