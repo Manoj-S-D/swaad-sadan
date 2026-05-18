@@ -26,7 +26,7 @@ class User:
         cursor = db.cursor()
         cursor.execute('''
             INSERT INTO users (name, email, phone, password, role, isActive, addresses)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
         ''', (
             data['name'],
             data['email'],
@@ -45,7 +45,7 @@ class User:
     def find_by_email(email):
         db = Database.get_db()
         cursor = db.cursor()
-        cursor.execute('SELECT * FROM users WHERE email = ?', (email,))
+        cursor.execute('SELECT * FROM users WHERE email = %s', (email,))
         user = cursor.fetchone()
         db.close()
         return Database.row_to_dict(user)
@@ -54,7 +54,7 @@ class User:
     def find_by_id(user_id):
         db = Database.get_db()
         cursor = db.cursor()
-        cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))
+        cursor.execute('SELECT * FROM users WHERE id = %s', (user_id,))
         user = cursor.fetchone()
         db.close()
         return Database.row_to_dict(user)
@@ -68,7 +68,7 @@ class Product:
         cursor = db.cursor()
         cursor.execute('''
             INSERT INTO products (name, description, category, price, image, isVeg, isHealthBox, isAvailable, nutrition)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         ''', (
             data['name'],
             data.get('description', ''),
@@ -100,13 +100,13 @@ class Product:
         
         if filters:
             if 'category' in filters:
-                query += ' AND category = ?'
+                query += ' AND category = %s'
                 params.append(filters['category'])
             if 'isVeg' in filters:
-                query += ' AND isVeg = ?'
+                query += ' AND isVeg = %s'
                 params.append(1 if filters['isVeg'] else 0)
             if 'isHealthBox' in filters:
-                query += ' AND isHealthBox = ?'
+                query += ' AND isHealthBox = %s'
                 params.append(1 if filters['isHealthBox'] else 0)
         
         cursor.execute(query, params)
@@ -118,7 +118,7 @@ class Product:
     def find_by_id(product_id):
         db = Database.get_db()
         cursor = db.cursor()
-        cursor.execute('SELECT * FROM products WHERE id = ?', (product_id,))
+        cursor.execute('SELECT * FROM products WHERE id = %s', (product_id,))
         product = cursor.fetchone()
         db.close()
         return Database.row_to_dict(product)
@@ -133,12 +133,12 @@ class Product:
         
         for key, value in data.items():
             if key in ['name', 'description', 'category', 'price', 'image', 'isVeg', 'isHealthBox', 'isAvailable']:
-                fields.append(f'{key} = ?')
+                fields.append(f'{key} = %s')
                 values.append(value)
         
         if fields:
             values.append(product_id)
-            cursor.execute(f'UPDATE products SET {", ".join(fields)} WHERE id = ?', values)
+            cursor.execute(f'UPDATE products SET {", ".join(fields)} WHERE id = %s', values)
             db.commit()
         
         db.close()
@@ -147,7 +147,7 @@ class Product:
     def delete(product_id):
         db = Database.get_db()
         cursor = db.cursor()
-        cursor.execute('DELETE FROM products WHERE id = ?', (product_id,))
+        cursor.execute('DELETE FROM products WHERE id = %s', (product_id,))
         db.commit()
         db.close()
 
@@ -166,7 +166,7 @@ class Order:
         
         cursor.execute('''
             INSERT INTO orders (orderNumber, userId, items, orderType, deliveryAddress, pricing, payment, status, specialInstructions)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         ''', (
             order_number,
             data['user'],
@@ -187,7 +187,7 @@ class Order:
     def find_by_user(user_id):
         db = Database.get_db()
         cursor = db.cursor()
-        cursor.execute('SELECT * FROM orders WHERE userId = ? ORDER BY createdAt DESC', (user_id,))
+        cursor.execute('SELECT * FROM orders WHERE userId = %s ORDER BY createdAt DESC', (user_id,))
         orders = cursor.fetchall()
         db.close()
         return [Database.row_to_dict(o) for o in orders]
@@ -196,7 +196,7 @@ class Order:
     def find_by_id(order_id):
         db = Database.get_db()
         cursor = db.cursor()
-        cursor.execute('SELECT * FROM orders WHERE id = ?', (order_id,))
+        cursor.execute('SELECT * FROM orders WHERE id = %s', (order_id,))
         order = cursor.fetchone()
         db.close()
         return Database.row_to_dict(order)
@@ -244,7 +244,7 @@ class Settings:
             }
             cursor.execute('''
                 INSERT INTO settings (id, deliveryCharges, parcelCharge, offers, contactInfo, trustBadges)
-                VALUES (1, ?, ?, ?, ?, ?)
+                VALUES (1, %s, %s, %s, %s, %s)
             ''', (
                 default_settings['deliveryCharges'],
                 default_settings['parcelCharge'],
