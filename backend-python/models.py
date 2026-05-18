@@ -259,12 +259,17 @@ class Settings:
         db.close()
         result = Database.row_to_dict(settings)
         
-        # Parse JSON fields
+        # Parse JSON fields (only if they're strings - PostgreSQL JSONB returns already-parsed dicts)
         if result:
-            result['deliveryCharges'] = json.loads(result['deliveryCharges'])
-            result['offers'] = json.loads(result['offers'])
-            result['contactInfo'] = json.loads(result['contactInfo'])
-            result['trustBadges'] = json.loads(result['trustBadges'])
+            # Check if value is string before parsing - PostgreSQL JSONB auto-parses to dict
+            if isinstance(result['deliveryCharges'], str):
+                result['deliveryCharges'] = json.loads(result['deliveryCharges'])
+            if isinstance(result['offers'], str):
+                result['offers'] = json.loads(result['offers'])
+            if isinstance(result['contactInfo'], str):
+                result['contactInfo'] = json.loads(result['contactInfo'])
+            if isinstance(result['trustBadges'], str):
+                result['trustBadges'] = json.loads(result['trustBadges'])
         
         return result
     
