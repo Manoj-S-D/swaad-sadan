@@ -1,4 +1,13 @@
 {% extends 'base.html' %}
+
+{% block head %}
+{{ super() }}
+<!-- Prevent caching to ensure latest code loads -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+{% endblock %}
+
 {% block title %}Menu - SWAAD SADAN{% endblock %}
 {% block content %}
 <div class="container">
@@ -21,6 +30,11 @@
 
 {% block scripts %}
 <script>
+    // Version check for debugging cache issues
+    console.log('🔄 Menu.html version: HTTPS-FIX-v2 (May 18, 2026)');
+    console.log('🌐 Current protocol:', window.location.protocol);
+    console.log('🔗 Origin:', window.location.origin);
+    
     // Store products globally
     let menuProducts = [];
     
