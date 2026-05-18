@@ -32,8 +32,8 @@ def get_stats():
         cursor.execute('SELECT COUNT(*) FROM products')
         total_products = cursor.fetchone()[0]
         
-        # Calculate revenue
-        cursor.execute("SELECT pricing FROM orders WHERE json_extract(payment, '$.status') = 'completed'")
+        # Calculate revenue - PostgreSQL JSONB syntax
+        cursor.execute("SELECT pricing FROM orders WHERE payment->>'status' = 'paid'")
         completed_orders = cursor.fetchall()
         total_revenue = 0
         for order in completed_orders:
