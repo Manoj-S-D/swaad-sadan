@@ -164,14 +164,16 @@ class Order:
         order_number = f"SS{int(time.time())}{count + 1}"
         
         cursor.execute('''
-            INSERT INTO orders (orderNumber, userId, items, orderType, deliveryAddress, pricing, payment, status, specialInstructions)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO orders (orderNumber, userId, items, orderType, deliveryAddress, deliveryLatitude, deliveryLongitude, pricing, payment, status, specialInstructions)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             order_number,
             data['user'],
             json.dumps(data['items']),
             data['orderType'],
             data.get('deliveryAddress', ''),
+            data.get('deliveryLatitude'),
+            data.get('deliveryLongitude'),
             json.dumps(data['pricing']),
             json.dumps(data['payment']),
             data.get('status', 'pending'),

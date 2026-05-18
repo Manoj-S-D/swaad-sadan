@@ -243,6 +243,18 @@ async function viewOrderDetails(orderId) {
                     <p><strong>Status:</strong> ${order.status}</p>
                     <p><strong>Order Type:</strong> ${order.orderType}</p>
                     ${order.deliveryAddress ? `<p><strong>Delivery Address:</strong> ${order.deliveryAddress}</p>` : ''}
+                    ${order.deliveryLatitude && order.deliveryLongitude ? `
+                        <p>
+                            <strong>Delivery Location:</strong> 
+                            <span style="color: #666; font-size: 0.9rem;">${order.deliveryLatitude}, ${order.deliveryLongitude}</span>
+                            <a href="https://www.google.com/maps?q=${order.deliveryLatitude},${order.deliveryLongitude}" 
+                               target="_blank" 
+                               class="btn btn-sm btn-success" 
+                               style="margin-left: 1rem; padding: 0.3rem 0.8rem; text-decoration: none; display: inline-block;">
+                                📍 View on Map
+                            </a>
+                        </p>
+                    ` : ''}
                     ${order.specialInstructions ? `<p><strong>Instructions:</strong> ${order.specialInstructions}</p>` : ''}
                     
                     <h4 style="margin-top: 1.5rem;">Items</h4>

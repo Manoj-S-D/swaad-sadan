@@ -1,5 +1,10 @@
 {% extends 'base.html' %}
 {% block title %}Cart - SWAAD SADAN{% endblock %}
+
+{% block head %}
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&libraries=places"></script>
+{% endblock %}
+
 {% block content %}
 <div class="container">
     <div class="section-heading">
@@ -51,7 +56,13 @@
                     <select class="form-control" id="savedAddresses" onchange="selectSavedAddress()" style="margin-bottom: 0.5rem;">
                         <option value="">Select saved address...</option>
                     </select>
-                    <textarea class="form-control" id="deliveryAddress" rows="3" placeholder="Or enter a new address"></textarea>
+                    <button type="button" class="btn btn-primary" onclick="openMapPicker()" style="width: 100%; margin-bottom: 0.5rem;">
+                        📍 Choose Location on Map
+                    </button>
+                    <textarea class="form-control" id="deliveryAddress" rows="3" placeholder="Or enter address manually"></textarea>
+                    <input type="hidden" id="deliveryLatitude">
+                    <input type="hidden" id="deliveryLongitude">
+                    <div id="selectedLocation" style="margin-top: 0.5rem; font-size: 0.85rem; color: #666;"></div>
                     <a href="/profile" style="font-size: 0.9rem; color: var(--primary); text-decoration: none; display: inline-block; margin-top: 0.5rem;">
                         ➕ Manage saved addresses
                     </a>
@@ -90,7 +101,53 @@
     </div>
 </div>
 
+<!-- Map Location Picker Modal -->
+<div id="mapModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 800px; width: 90%;">
+        <span class="close" onclick="closeMapPicker()">&times;</span>
+        <h3>Choose Delivery Location</h3>
+        <div style="margin: 1rem 0;">
+            <input type="text" id="mapSearch" class="form-control" placeholder="Search for location..." style="margin-bottom: 0.5rem;">
+            <button class="btn btn-secondary btn-sm" onclick="getCurrentLocation()">📍 Use My Current Location</button>
+        </div>
+        <div id="map" style="height: 400px; width: 100%; border-radius: 8px; margin: 1rem 0;"></div>
+        <div id="mapAddress" style="padding: 0.5rem; background: #f0f0f0; border-radius: 4px; margin-bottom: 1rem; min-height: 40px;"></div>
+        <button class="btn btn-success" onclick="confirmLocation()" style="width: 100%;">Confirm Location</button>
+    </div>
+</div>
+
 <style>
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.5);
+}
+.modal-content {
+    background-color: #fefefe;
+    margin: 3% auto;
+    padding: 2rem;
+    border: 1px solid #888;
+    border-radius: 12px;
+    max-width: 600px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 20px;
+}
+.close:hover {
+    color: black;
+}
 .cart-item {
     background: white;
     padding: 1.5rem;
@@ -401,9 +458,11 @@ async function proceedToCheckout() {
     const orderType = document.getElementById('orderType').value;
     const deliveryAddress = document.getElementById('deliveryAddress').value;
     const paymentMethod = document.getElementById('paymentMethod').value;
+    const deliveryLat = document.getElementById('deliveryLatitude').value;
+    const deliveryLng = document.getElementById('deliveryLongitude').value;
     
     if (orderType === 'delivery' && !deliveryAddress) {
-        showAlert('Please enter delivery address', 'error');
+        showAlert('Please enter delivery address or select location on map', 'error');
         return;
     }
     
@@ -425,6 +484,8 @@ async function proceedToCheckout() {
         items: items,
         orderType: orderType,
         deliveryAddress: deliveryAddress,
+        deliveryLatitude: deliveryLat || null,
+        deliveryLongitude: deliveryLng || null,
         couponCode: appliedCoupon ? appliedCoupon.code : null,
         pointsToRedeem: pointsUsed,
         paymentMethod: paymentMethod,
@@ -492,5 +553,179 @@ async function createOrder(orderData) {
 // Initialize
 loadUserPoints();
 renderCart();
+
+// Google Maps Location Picker
+let map;
+let marker;
+let geocoder;
+let selectedLat = null;
+let selectedLng = null;
+let selectedAddress = '';
+
+function initMap(lat = 28.6139, lng = 77.2090) {
+    // Initialize map centered on Delhi by default
+    const center = { lat: lat, lng: lng };
+    
+    map = new google.maps.Map(document.getElementById('map'), {
+        zoom: 15,
+        center: center,
+        mapTypeControl: false,
+        streetViewControl: false,
+    });
+    
+    // Initialize geocoder
+    geocoder = new google.maps.Geocoder();
+    
+    // Add marker
+    marker = new google.maps.Marker({
+        position: center,
+        map: map,
+        draggable: true,
+        animation: google.maps.Animation.DROP,
+    });
+    
+    // Update address when marker is dragged
+    marker.addListener('dragend', function(event) {
+        const position = marker.getPosition();
+        updateLocationFromLatLng(position.lat(), position.lng());
+    });
+    
+    // Click on map to place marker
+    map.addListener('click', function(event) {
+        marker.setPosition(event.latLng);
+        updateLocationFromLatLng(event.latLng.lat(), event.latLng.lng());
+    });
+    
+    // Setup search box
+    const searchBox = new google.maps.places.SearchBox(document.getElementById('mapSearch'));
+    
+    searchBox.addListener('places_changed', function() {
+        const places = searchBox.getPlaces();
+        
+        if (places.length === 0) {
+            return;
+        }
+        
+        const place = places[0];
+        
+        if (!place.geometry || !place.geometry.location) {
+            return;
+        }
+        
+        // Update map and marker
+        map.setCenter(place.geometry.location);
+        marker.setPosition(place.geometry.location);
+        
+        updateLocationFromLatLng(
+            place.geometry.location.lat(),
+            place.geometry.location.lng()
+        );
+    });
+    
+    // Get address for initial position
+    updateLocationFromLatLng(lat, lng);
+}
+
+function updateLocationFromLatLng(lat, lng) {
+    selectedLat = lat;
+    selectedLng = lng;
+    
+    // Reverse geocode to get address
+    geocoder.geocode({ location: { lat: lat, lng: lng } }, function(results, status) {
+        if (status === 'OK' && results[0]) {
+            selectedAddress = results[0].formatted_address;
+            document.getElementById('mapAddress').innerHTML = `
+                <strong>Selected Location:</strong><br>
+                ${selectedAddress}<br>
+                <small style="color: #666;">Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}</small>
+            `;
+        }
+    });
+}
+
+function openMapPicker() {
+    document.getElementById('mapModal').style.display = 'block';
+    
+    // Try to use current delivery address location if available
+    const currentLat = document.getElementById('deliveryLatitude').value;
+    const currentLng = document.getElementById('deliveryLongitude').value;
+    
+    if (currentLat && currentLng) {
+        setTimeout(() => initMap(parseFloat(currentLat), parseFloat(currentLng)), 100);
+    } else {
+        // Try to get user's current location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    setTimeout(() => initMap(position.coords.latitude, position.coords.longitude), 100);
+                },
+                function() {
+                    // Default to Delhi if geolocation fails
+                    setTimeout(() => initMap(), 100);
+                }
+            );
+        } else {
+            setTimeout(() => initMap(), 100);
+        }
+    }
+}
+
+function closeMapPicker() {
+    document.getElementById('mapModal').style.display = 'none';
+}
+
+function getCurrentLocation() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                const pos = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                
+                map.setCenter(pos);
+                marker.setPosition(pos);
+                updateLocationFromLatLng(pos.lat, pos.lng);
+            },
+            function() {
+                showAlert('Unable to get your location', 'error');
+            }
+        );
+    } else {
+        showAlert('Geolocation is not supported by your browser', 'error');
+    }
+}
+
+function confirmLocation() {
+    if (selectedLat && selectedLng && selectedAddress) {
+        // Update hidden fields
+        document.getElementById('deliveryLatitude').value = selectedLat;
+        document.getElementById('deliveryLongitude').value = selectedLng;
+        
+        // Update address field
+        document.getElementById('deliveryAddress').value = selectedAddress;
+        
+        // Show confirmation
+        document.getElementById('selectedLocation').innerHTML = `
+            <span style="color: green;">\u2713 Location selected on map</span>
+        `;
+        
+        // Clear saved address selection
+        document.getElementById('savedAddresses').value = '';
+        
+        closeMapPicker();
+        showAlert('Location selected successfully!', 'success');
+    } else {
+        showAlert('Please select a location on the map', 'error');
+    }
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('mapModal');
+    if (event.target === modal) {
+        closeMapPicker();
+    }
+}
 </script>
 {% endblock %}

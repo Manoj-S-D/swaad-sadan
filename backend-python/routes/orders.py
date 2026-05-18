@@ -110,6 +110,8 @@ def create_order():
             'items': data['items'],
             'orderType': data['orderType'],
             'deliveryAddress': data.get('deliveryAddress'),
+            'deliveryLatitude': data.get('deliveryLatitude'),
+            'deliveryLongitude': data.get('deliveryLongitude'),
             'pricing': {
                 'subtotal': subtotal,
                 'deliveryCharge': delivery_charge,

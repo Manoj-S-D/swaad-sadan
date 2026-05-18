@@ -148,7 +148,9 @@ class UnifiedCursor:
                 'trustbadges': 'trustBadges',
                 'adminreply': 'adminReply',
                 'repliedat': 'repliedAt',
-                'username': 'userName'
+                'username': 'userName',
+                'deliverylatitude': 'deliveryLatitude',
+                'deliverylongitude': 'deliveryLongitude'
             }
             
             for key, value in row.items():
@@ -353,6 +355,8 @@ def _init_sqlite():
             items TEXT NOT NULL,
             orderType TEXT NOT NULL,
             deliveryAddress TEXT,
+            deliveryLatitude REAL,
+            deliveryLongitude REAL,
             pricing TEXT NOT NULL,
             payment TEXT NOT NULL,
             status TEXT DEFAULT 'pending',
@@ -596,8 +600,8 @@ def _init_postgres():
             userId INTEGER NOT NULL,
             items JSONB NOT NULL,
             orderType TEXT NOT NULL,
-            deliveryAddress TEXT,
-            pricing JSONB NOT NULL,
+            deliveryAddress TEXT,            deliveryLatitude DECIMAL(10, 8),
+            deliveryLongitude DECIMAL(11, 8),            pricing JSONB NOT NULL,
             payment JSONB NOT NULL,
             status TEXT DEFAULT 'pending',
             specialInstructions TEXT,
