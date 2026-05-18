@@ -12,6 +12,12 @@
         <button class="btn btn-primary" onclick="showAddProductForm()">+ Add New Product</button>
     </div>
     
+    <!-- Debug: Show all products -->
+    <div id="debug-all-products" style="margin-bottom: 1rem; padding: 1rem; background: #f0f0f0; border-radius: 4px; display: none;">
+        <strong>Debug - All Products:</strong>
+        <pre id="debug-products-data" style="max-height: 200px; overflow-y: auto;"></pre>
+    </div>
+    
     <div id="product-form" style="display: none;" class="card" style="margin-bottom: 2rem;">
         <h3 id="product-form-title">Add New Product</h3>
         <form id="addProductForm" onsubmit="saveProduct(event)">
@@ -87,10 +93,29 @@ async function loadAdminProducts() {
     const response = await fetch('/api/products?includeAll=true');
     const data = await response.json();
     
-    if (data.success && data.products.length > 0) {
+    console.log('API Response:', data);
+    console.log('Products:', data.products);
+    
+    // Show debug info
+    const debugDiv = document.getElementById('debug-all-products');
+    const debugPre = document.getElementById('debug-products-data');
+    if (data.products) {
+        debugDiv.style.display = 'block';
+        debugPre.textContent = JSON.stringify(data.products, null, 2);
+    }
+    
+    if (data.success && data.products && data.products.length > 0) {
+        // Log each product's isAvailable value to debug
+        data.products.forEach(p => {
+            console.log(`Product: ${p.name}, isAvailable: ${p.isAvailable}, Type: ${typeof p.isAvailable}`);
+        });
+        
         // Separate products into live (in stock) and catalog (out of stock)
         const liveProducts = data.products.filter(p => p.isAvailable === 1);
         const catalogProducts = data.products.filter(p => p.isAvailable === 0);
+        
+        console.log('Live Products:', liveProducts.length);
+        console.log('Catalog Products:', catalogProducts.length);
         
         // Render Live Menu (In Stock)
         const liveContainer = document.getElementById('live-products-list');
@@ -172,7 +197,9 @@ async function loadAdminProducts() {
             catalogContainer.innerHTML = '<p style="color: #999; padding: 1rem;">No products in Catalog. All products are live!</p>';
         }
     } else {
-        document.getElementById('live-products-list').innerHTML = '<p>No products found. Add your first product!</p>';
+        console.log('No products or error:', data);
+        const message = data.products ? 'No products found. Add your first product!' : `Error: ${data.message || 'Unknown error'}`;
+        document.getElementById('live-products-list').innerHTML = `<p>${message}</p>`;
         document.getElementById('catalog-products-list').innerHTML = '';
     }
 }

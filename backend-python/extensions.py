@@ -46,6 +46,10 @@ class UnifiedCursor:
             # Convert INSERT to use RETURNING id
             if 'INSERT INTO' in query.upper() and 'RETURNING' not in query.upper():
                 query = query.rstrip(';').rstrip() + ' RETURNING id'
+            
+            # Convert integer params (0/1) to boolean for PostgreSQL boolean columns
+            if params:
+                params = self._convert_params_for_postgres(query, params)
         
         result = self.cursor.execute(query, params or ())
         
@@ -93,6 +97,65 @@ class UnifiedCursor:
             
             return DictRow(converted)
         return row
+    
+    def _convert_params_for_postgres(self, query, params):
+        """Convert integer 0/1 to boolean False/True for PostgreSQL boolean columns"""
+        # Define boolean columns for each table
+        boolean_columns = {
+            'users': ['isActive'],
+            'products': ['isVeg', 'isHealthBox', 'isAvailable'],
+            'coupons': ['isActive'],
+            'subscription_plans': ['isActive'],
+            'catering_packages': ['isActive'],
+            'event_packages': ['isActive']
+        }
+        
+        # Extract table name from query
+        table_name = None
+        if 'INSERT INTO' in query.upper():
+            import re
+            match = re.search(r'INSERT INTO (\w+)', query, re.IGNORECASE)
+            if match:
+                table_name = match.group(1)
+        elif 'UPDATE' in query.upper():
+            import re
+            match = re.search(r'UPDATE (\w+)', query, re.IGNORECASE)
+            if match:
+                table_name = match.group(1)
+        
+        if not table_name or table_name not in boolean_columns:
+            return params
+        
+        # Extract column names from query
+        if 'INSERT INTO' in query.upper():
+            import re
+            # Match: INSERT INTO table (col1, col2, ...) VALUES
+            match = re.search(r'\(([^)]+)\)\s*VALUES', query, re.IGNORECASE)
+            if match:
+                columns = [col.strip() for col in match.group(1).split(',')]
+                bool_cols = boolean_columns.get(table_name, [])
+                
+                # Convert params to list if it's tuple
+                params_list = list(params)
+                for idx, col in enumerate(columns):
+                    if col in bool_cols and idx < len(params_list):
+                        val = params_list[idx]
+                        if val in (0, 1):
+                            params_list[idx] = bool(val)
+                return tuple(params_list)
+        
+        elif 'UPDATE' in query.upper():
+            # For UPDATE queries, we need more sophisticated parsing
+            # For now, convert any 0/1 that might be a boolean
+            params_list = list(params)
+            for idx, val in enumerate(params_list):
+                # Simple heuristic: if it's 0 or 1, convert to bool
+                # This works because we're only updating boolean-heavy tables
+                if val in (0, 1) and isinstance(val, int):
+                    params_list[idx] = bool(val)
+            return tuple(params_list)
+        
+        return params
 
 class UnifiedConnection:
     """Wrapper connection that provides unified interface"""
