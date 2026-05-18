@@ -24,7 +24,8 @@ def get_plans():
         conn.close()
         return jsonify({'success': True, 'plans': plans})
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
+        import traceback
+        return jsonify({'success': False, 'error': str(e), 'trace': traceback.format_exc()})
 
 @bp.route('/plans/all', methods=['GET'])
 @jwt_required()
