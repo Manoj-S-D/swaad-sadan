@@ -83,14 +83,14 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function loadAdminProducts() {
-    // Fetch all products including catalog items (isAvailable=0)
+    // Fetch all products including catalog items (isAvailable=false)
     const response = await fetch('/api/products?includeAll=true');
     const data = await response.json();
     
     if (data.success && data.products.length > 0) {
         // Separate products into live (in stock) and catalog (out of stock)
-        const liveProducts = data.products.filter(p => p.isAvailable === 1);
-        const catalogProducts = data.products.filter(p => p.isAvailable === 0);
+        const liveProducts = data.products.filter(p => p.isAvailable === true);
+        const catalogProducts = data.products.filter(p => p.isAvailable === false);
         
         // Render Live Menu (In Stock)
         const liveContainer = document.getElementById('live-products-list');
@@ -188,9 +188,9 @@ async function saveProduct(e) {
         image: document.getElementById('productImage').value || '',
         description: document.getElementById('productDescription').value,
         category: document.getElementById('productCategory').value,
-        isVeg: document.getElementById('productVeg').checked ? 1 : 0,
-        isHealthBox: document.getElementById('productHealth').checked ? 1 : 0,
-        isAvailable: document.getElementById('productAvailable').checked ? 1 : 0
+        isVeg: document.getElementById('productVeg').checked,
+        isHealthBox: document.getElementById('productHealth').checked,
+        isAvailable: document.getElementById('productAvailable').checked
     };
     
     try {
@@ -283,7 +283,7 @@ async function editProduct(productId) {
 
 async function toggleStock(productId, currentStatus) {
     const token = localStorage.getItem('token');
-    const newStatus = currentStatus ? 0 : 1;
+    const newStatus = !currentStatus;  // Toggle boolean value
     const message = newStatus ? 'move to Live Menu' : 'move to Catalog (out of stock)';
     
     if (!confirm(`Are you sure you want to ${message}?`)) {

@@ -22,11 +22,7 @@
 {% block scripts %}
 <script>
     async function loadProducts(filters = {}) {
-        // By default, only show in-stock (available) products
-        if (!('isAvailable' in filters)) {
-            filters.isAvailable = 1;
-        }
-        
+        // Backend filters available products by default (no need to pass isAvailable)
         const params = new URLSearchParams(filters);
         const response = await fetch(`/api/products?${params}`);
         const data = await response.json();
@@ -35,15 +31,15 @@
         if (data.success && data.products.length > 0) {
             container.innerHTML = data.products.map(p => {
                 // Show out of stock badge if not available
-                const outOfStockBadge = p.isAvailable === 0 
+                const outOfStockBadge = p.isAvailable === false 
                     ? '<span class="product-badge" style="background: #DC3545; color: white;">❌ Out of Stock</span>' 
                     : '';
-                const addToCartBtn = p.isAvailable === 1 
+                const addToCartBtn = p.isAvailable === true 
                     ? `<button class="btn btn-primary" style="margin-top: 1rem; width: 100%;" onclick='addToCart(${JSON.stringify(p)})'>Add to Cart</button>`
                     : '<button class="btn btn-secondary" style="margin-top: 1rem; width: 100%;" disabled>Out of Stock</button>';
                 
                 return `
-                    <div class="product-card" style="${p.isAvailable === 0 ? 'opacity: 0.6;' : ''}">
+                    <div class="product-card" style="${p.isAvailable === false ? 'opacity: 0.6;' : ''}">
                         <div class="product-img" style="background: linear-gradient(135deg, #FFE0B2, #FFAB91); display: flex; align-items: center; justify-content: center; font-size: 4rem;">
                             ${p.isVeg ? '🥗' : '🍱'}
                         </div>
