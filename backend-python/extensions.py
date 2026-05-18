@@ -150,7 +150,10 @@ class UnifiedCursor:
                 'repliedat': 'repliedAt',
                 'username': 'userName',
                 'deliverylatitude': 'deliveryLatitude',
-                'deliverylongitude': 'deliveryLongitude'
+                'deliverylongitude': 'deliveryLongitude',
+                'isdefault': 'isDefault',
+                'addressline1': 'addressLine1',
+                'addressline2': 'addressLine2'
             }
             
             for key, value in row.items():
@@ -792,6 +795,38 @@ def _init_postgres():
     ''')
     
     conn.commit()
+    
+    # Run migrations to add new columns to existing tables
+    print("🔄 Running database migrations...")
+    
+    # Add deliveryLatitude and deliveryLongitude columns to orders table if they don't exist
+    try:
+        cursor.execute('''
+            DO $$ 
+            BEGIN 
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name = 'orders' AND column_name = 'deliverylatitude'
+                ) THEN
+                    ALTER TABLE orders ADD COLUMN deliveryLatitude DECIMAL(10, 8);
+                    RAISE NOTICE 'Added deliveryLatitude column to orders table';
+                END IF;
+                
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name = 'orders' AND column_name = 'deliverylongitude'
+                ) THEN
+                    ALTER TABLE orders ADD COLUMN deliveryLongitude DECIMAL(11, 8);
+                    RAISE NOTICE 'Added deliveryLongitude column to orders table';
+                END IF;
+            END $$;
+        ''')
+        conn.commit()
+        print("✅ Migration completed successfully")
+    except Exception as e:
+        print(f"⚠️ Migration warning: {e}")
+        conn.rollback()
+    
     conn.close()
     
     print("✅ PostgreSQL Database Initialized Successfully")
