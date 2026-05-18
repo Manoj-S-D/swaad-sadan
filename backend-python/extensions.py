@@ -1,43 +1,43 @@
 """Flask extensions initialization"""
-import sqlite3
-import json
+import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from flask_jwt_extended import JWTManager
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 
-# Initialize extensions (without app)
+# Initialize extensions
 jwt = JWTManager()
 bcrypt = Bcrypt()
 cors = CORS()
 
 # Database connection
-db_path = None
+database_url = None
 
 def get_db():
-    """Get database connection"""
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row  # Return rows as dictionaries
+    """Get PostgreSQL database connection"""
+    conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
     return conn
 
-def init_db(database_path):
-    """Initialize SQLite database with tables"""
-    global db_path
-    db_path = database_path
+def init_db(db_url):
+    """Initialize PostgreSQL database with tables"""
+    global database_url
+    database_url = db_url
     
-    conn = sqlite3.connect(db_path)
+    conn = psycopg2.connect(database_url)
     cursor = conn.cursor()
     
     # Users table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             name TEXT NOT NULL,
             email TEXT UNIQUE NOT NULL,
             phone TEXT NOT NULL,
             password TEXT NOT NULL,
             role TEXT DEFAULT 'customer',
-            isActive INTEGER DEFAULT 1,
-            addresses TEXT DEFAULT '[]',
+            isActive BOOLEAN DEFAULT TRUE,
+            addresses JSONB DEFAULT '[]',
             createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -45,18 +45,18 @@ def init_db(database_path):
     # Products table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS products (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             name TEXT NOT NULL,
             description TEXT,
             category TEXT,
             price REAL NOT NULL,
             image TEXT,
-            isVeg INTEGER DEFAULT 1,
-            isHealthBox INTEGER DEFAULT 0,
-            isAvailable INTEGER DEFAULT 1,
+            isVeg BOOLEAN DEFAULT TRUE,
+            isHealthBox BOOLEAN DEFAULT FALSE,
+            isAvailable BOOLEAN DEFAULT TRUE,
             rating REAL DEFAULT 0,
-            reviews TEXT DEFAULT '[]',
-            nutrition TEXT DEFAULT '{}',
+            reviews JSONB DEFAULT '[]',
+            nutrition JSONB DEFAULT '{}',
             createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -64,14 +64,14 @@ def init_db(database_path):
     # Orders table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS orders (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             orderNumber TEXT UNIQUE NOT NULL,
             userId INTEGER NOT NULL,
-            items TEXT NOT NULL,
+            items JSONB NOT NULL,
             orderType TEXT NOT NULL,
             deliveryAddress TEXT,
-            pricing TEXT NOT NULL,
-            payment TEXT NOT NULL,
+            pricing JSONB NOT NULL,
+            payment JSONB NOT NULL,
             status TEXT DEFAULT 'pending',
             specialInstructions TEXT,
             createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -82,12 +82,12 @@ def init_db(database_path):
     # Settings table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS settings (
-            id INTEGER PRIMARY KEY,
-            deliveryCharges TEXT NOT NULL,
+            id SERIAL PRIMARY KEY,
+            deliveryCharges JSONB NOT NULL,
             parcelCharge INTEGER DEFAULT 10,
-            offers TEXT DEFAULT '[]',
-            contactInfo TEXT NOT NULL,
-            trustBadges TEXT DEFAULT '{}',
+            offers JSONB DEFAULT '[]',
+            contactInfo JSONB NOT NULL,
+            trustBadges JSONB DEFAULT '{}',
             updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -95,7 +95,7 @@ def init_db(database_path):
     # Loyalty Points table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS loyalty_points (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             userId INTEGER NOT NULL,
             points INTEGER DEFAULT 0,
             totalEarned INTEGER DEFAULT 0,
@@ -108,7 +108,7 @@ def init_db(database_path):
     # Coupons table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS coupons (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             code TEXT UNIQUE NOT NULL,
             type TEXT NOT NULL,
             value REAL NOT NULL,
@@ -119,15 +119,15 @@ def init_db(database_path):
             expiryDate TEXT NOT NULL,
             usageLimit INTEGER DEFAULT 1,
             usedCount INTEGER DEFAULT 0,
-            isActive INTEGER DEFAULT 1,
+            isActive BOOLEAN DEFAULT TRUE,
             createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     
-    # Coupon Usage table (track which users used which coupons)
+    # Coupon Usage table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS coupon_usage (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             couponId INTEGER NOT NULL,
             userId INTEGER NOT NULL,
             orderId INTEGER NOT NULL,
@@ -142,14 +142,14 @@ def init_db(database_path):
     # Subscription Plans table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS subscription_plans (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             name TEXT NOT NULL,
             description TEXT,
             duration TEXT NOT NULL,
             price REAL NOT NULL,
             mealsPerDay INTEGER DEFAULT 1,
-            features TEXT DEFAULT '[]',
-            isActive INTEGER DEFAULT 1,
+            features JSONB DEFAULT '[]',
+            isActive BOOLEAN DEFAULT TRUE,
             createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -157,16 +157,16 @@ def init_db(database_path):
     # Catering Packages table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS catering_packages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             name TEXT NOT NULL,
             description TEXT,
             type TEXT NOT NULL,
             minGuests INTEGER NOT NULL,
             maxGuests INTEGER,
             pricePerPerson REAL NOT NULL,
-            menuItems TEXT DEFAULT '[]',
-            features TEXT DEFAULT '[]',
-            isActive INTEGER DEFAULT 1,
+            menuItems JSONB DEFAULT '[]',
+            features JSONB DEFAULT '[]',
+            isActive BOOLEAN DEFAULT TRUE,
             createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -174,29 +174,29 @@ def init_db(database_path):
     # Event Packages table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS event_packages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             name TEXT NOT NULL,
             description TEXT,
             eventType TEXT NOT NULL,
             capacity INTEGER NOT NULL,
             price REAL NOT NULL,
             duration TEXT,
-            inclusions TEXT DEFAULT '[]',
+            inclusions JSONB DEFAULT '[]',
             venue TEXT,
-            isActive INTEGER DEFAULT 1,
+            isActive BOOLEAN DEFAULT TRUE,
             createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     
-    # Service Requests table (for catering, events, subscriptions)
+    # Service Requests table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS service_requests (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             requestNumber TEXT UNIQUE NOT NULL,
             userId INTEGER NOT NULL,
             serviceType TEXT NOT NULL,
             packageId INTEGER,
-            requestData TEXT NOT NULL,
+            requestData JSONB NOT NULL,
             scheduledDate TEXT,
             scheduledTime TEXT,
             status TEXT DEFAULT 'pending',
@@ -208,10 +208,10 @@ def init_db(database_path):
         )
     ''')
     
-    # Request Messages table (for admin-customer chat)
+    # Request Messages table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS request_messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             requestId INTEGER NOT NULL,
             senderId INTEGER NOT NULL,
             senderRole TEXT NOT NULL,
@@ -223,7 +223,8 @@ def init_db(database_path):
     ''')
     
     conn.commit()
+    cursor.close()
     conn.close()
     
-    print("✅ SQLite Database Initialized Successfully")
-    return db_path
+    print("✅ PostgreSQL Database Initialized Successfully")
+    return database_url
