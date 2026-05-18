@@ -214,7 +214,8 @@ function updateOrderSummary() {
 }
 
 function renderCart() {
-    const cart = JSON.parse(localStorage.getItem('cart')) || [];
+    // Sync with global cart variable from main.js
+    cart = JSON.parse(localStorage.getItem('cart')) || [];
     const container = document.getElementById('cart-items');
     
     if (cart.length === 0) {

@@ -144,6 +144,10 @@ function removeFromCart(productId) {
     saveCart();
     updateCartCount();
     renderCart();
+    // Call updateOrderSummary if on cart page
+    if (typeof updateOrderSummary === 'function') {
+        updateOrderSummary();
+    }
 }
 
 function updateQuantity(productId, quantity) {
@@ -155,6 +159,10 @@ function updateQuantity(productId, quantity) {
         } else {
             saveCart();
             renderCart();
+            // Call updateOrderSummary if on cart page
+            if (typeof updateOrderSummary === 'function') {
+                updateOrderSummary();
+            }
         }
     }
 }
