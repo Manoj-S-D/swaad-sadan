@@ -87,7 +87,7 @@ async function loadProducts(filters) {
                     <h3 class="product-name">${product.name}</h3>
                     <p class="product-price">₹${product.price}</p>
                     ${product.description ? `<p style="color: #666; font-size: 0.9rem;">${product.description}</p>` : ''}
-                    <button class="btn btn-primary" style="margin-top: 1rem; width: 100%;" onclick="addToCart(${product.id})">
+                    <button class="btn btn-primary" style="margin-top: 1rem; width: 100%;" onclick="addProductToCart(${product.id})">
                         Add to Cart
                     </button>
                 </div>
@@ -113,11 +113,11 @@ async function loadProducts(filters) {
     }
 }
 
-function addToCart(productId) {
+function addProductToCart(productId) {
     const product = menuProducts.find(p => p.id === productId);
     if (product) {
-        alert('Added ' + product.name + ' to cart (₹' + product.price + ')');
-        console.log('Added to cart:', product);
+        // Call global addToCart function from main.js
+        addToCart(product);
     }
 }
 
