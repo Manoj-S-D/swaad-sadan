@@ -12,7 +12,7 @@ def get_packages():
         conn = get_db()
         cursor = conn.cursor()
         
-        cursor.execute('SELECT * FROM event_packages WHERE isActive = 1 ORDER BY price ASC')
+        cursor.execute('SELECT * FROM event_packages WHERE isActive = TRUE ORDER BY price ASC')
         packages = [dict(row) for row in cursor.fetchall()]
         
         # Parse JSON fields

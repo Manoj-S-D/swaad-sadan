@@ -12,7 +12,7 @@ def get_catering():
         conn = get_db()
         cursor = conn.cursor()
         
-        cursor.execute('SELECT * FROM catering_packages WHERE isActive = 1 ORDER BY pricePerPerson ASC')
+        cursor.execute('SELECT * FROM catering_packages WHERE isActive = TRUE ORDER BY pricePerPerson ASC')
         packages = [dict(row) for row in cursor.fetchall()]
         
         # Parse JSON fields

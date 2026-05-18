@@ -13,7 +13,7 @@ def get_plans():
         cursor = conn.cursor()
         
         # Get only active plans for customers, or all for admin
-        cursor.execute('SELECT * FROM subscription_plans WHERE isActive = 1 ORDER BY price ASC')
+        cursor.execute('SELECT * FROM subscription_plans WHERE isActive = TRUE ORDER BY price ASC')
         plans = [dict(row) for row in cursor.fetchall()]
         
         # Parse JSON fields

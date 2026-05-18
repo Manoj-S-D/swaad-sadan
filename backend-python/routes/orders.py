@@ -40,7 +40,7 @@ def create_order():
             from routes.coupons import record_coupon_usage
             db = Database.get_db()
             cursor = db.cursor()
-            cursor.execute('SELECT * FROM coupons WHERE code = ? AND isActive = 1', (data['couponCode'],))
+            cursor.execute('SELECT * FROM coupons WHERE code = ? AND isActive = TRUE', (data['couponCode'],))
             coupon = cursor.fetchone()
             
             if coupon:

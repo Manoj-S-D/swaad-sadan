@@ -21,7 +21,7 @@ def get_active_coupons():
         
         cursor.execute('''
             SELECT * FROM coupons 
-            WHERE isActive = 1 AND expiryDate >= date('now')
+            WHERE isActive = TRUE AND expiryDate >= date('now')
             ORDER BY createdAt DESC
         ''')
         coupons = cursor.fetchall()
@@ -54,7 +54,7 @@ def validate_coupon():
         cursor = db.cursor()
         
         # Get coupon
-        cursor.execute('SELECT * FROM coupons WHERE code = ? AND isActive = 1', (code,))
+        cursor.execute('SELECT * FROM coupons WHERE code = ? AND isActive = TRUE', (code,))
         coupon = cursor.fetchone()
         
         if not coupon:
