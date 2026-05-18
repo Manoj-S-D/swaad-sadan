@@ -26,20 +26,18 @@ class User:
         cursor = db.cursor()
         cursor.execute('''
             INSERT INTO users (name, email, phone, password, role, isActive, addresses)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (
             data['name'],
             data['email'],
             data['phone'],
             data['password'],
             data.get('role', 'customer'),
-            bool(data.get('isActive', True)),
+            data.get('isActive', 1),
             json.dumps(data.get('addresses', []))
         ))
-        result = cursor.fetchone()
-        user_id = result['id'] if result else None
         db.commit()
+        user_id = cursor.lastrowid
         db.close()
         return user_id
     
@@ -47,7 +45,7 @@ class User:
     def find_by_email(email):
         db = Database.get_db()
         cursor = db.cursor()
-        cursor.execute('SELECT * FROM users WHERE email = %s', (email,))
+        cursor.execute('SELECT * FROM users WHERE email = ?', (email,))
         user = cursor.fetchone()
         db.close()
         return Database.row_to_dict(user)
@@ -56,7 +54,7 @@ class User:
     def find_by_id(user_id):
         db = Database.get_db()
         cursor = db.cursor()
-        cursor.execute('SELECT * FROM users WHERE id = %s', (user_id,))
+        cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))
         user = cursor.fetchone()
         db.close()
         return Database.row_to_dict(user)
@@ -70,22 +68,20 @@ class Product:
         cursor = db.cursor()
         cursor.execute('''
             INSERT INTO products (name, description, category, price, image, isVeg, isHealthBox, isAvailable, nutrition)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             data['name'],
             data.get('description', ''),
             data.get('category', ''),
             data['price'],
             data.get('image', ''),
-            bool(data.get('isVeg', True)),
-            bool(data.get('isHealthBox', False)),
-            bool(data.get('isAvailable', True)),
+            data.get('isVeg', 1),
+            data.get('isHealthBox', 0),
+            data.get('isAvailable', 1),
             json.dumps(data.get('nutrition', {}))
         ))
-        result = cursor.fetchone()
-        product_id = result['id'] if result else None
         db.commit()
+        product_id = cursor.lastrowid
         db.close()
         return product_id
     
@@ -98,20 +94,20 @@ class Product:
         if include_unavailable:
             query = 'SELECT * FROM products WHERE 1=1'
         else:
-            query = 'SELECT * FROM products WHERE isAvailable = TRUE'
+            query = 'SELECT * FROM products WHERE isAvailable = 1'
         
         params = []
         
         if filters:
             if 'category' in filters:
-                query += ' AND category = %s'
+                query += ' AND category = ?'
                 params.append(filters['category'])
             if 'isVeg' in filters:
-                query += ' AND isVeg = %s'
-                params.append(bool(filters['isVeg']))
+                query += ' AND isVeg = ?'
+                params.append(1 if filters['isVeg'] else 0)
             if 'isHealthBox' in filters:
-                query += ' AND isHealthBox = %s'
-                params.append(bool(filters['isHealthBox']))
+                query += ' AND isHealthBox = ?'
+                params.append(1 if filters['isHealthBox'] else 0)
         
         cursor.execute(query, params)
         products = cursor.fetchall()
@@ -122,7 +118,7 @@ class Product:
     def find_by_id(product_id):
         db = Database.get_db()
         cursor = db.cursor()
-        cursor.execute('SELECT * FROM products WHERE id = %s', (product_id,))
+        cursor.execute('SELECT * FROM products WHERE id = ?', (product_id,))
         product = cursor.fetchone()
         db.close()
         return Database.row_to_dict(product)
@@ -135,21 +131,14 @@ class Product:
         fields = []
         values = []
         
-        # Boolean fields that need type conversion
-        boolean_fields = ['isVeg', 'isHealthBox', 'isAvailable']
-        
         for key, value in data.items():
             if key in ['name', 'description', 'category', 'price', 'image', 'isVeg', 'isHealthBox', 'isAvailable']:
-                fields.append(f'{key} = %s')
-                # Convert to boolean for boolean fields
-                if key in boolean_fields:
-                    values.append(bool(value))
-                else:
-                    values.append(value)
+                fields.append(f'{key} = ?')
+                values.append(value)
         
         if fields:
             values.append(product_id)
-            cursor.execute(f'UPDATE products SET {", ".join(fields)} WHERE id = %s', values)
+            cursor.execute(f'UPDATE products SET {", ".join(fields)} WHERE id = ?', values)
             db.commit()
         
         db.close()
@@ -158,7 +147,7 @@ class Product:
     def delete(product_id):
         db = Database.get_db()
         cursor = db.cursor()
-        cursor.execute('DELETE FROM products WHERE id = %s', (product_id,))
+        cursor.execute('DELETE FROM products WHERE id = ?', (product_id,))
         db.commit()
         db.close()
 
@@ -172,14 +161,12 @@ class Order:
         
         # Generate order number
         cursor.execute('SELECT COUNT(*) as count FROM orders')
-        result = cursor.fetchone()
-        count = result['count'] if result else 0
+        count = cursor.fetchone()[0]
         order_number = f"SS{int(time.time())}{count + 1}"
         
         cursor.execute('''
             INSERT INTO orders (orderNumber, userId, items, orderType, deliveryAddress, pricing, payment, status, specialInstructions)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             order_number,
             data['user'],
@@ -191,9 +178,8 @@ class Order:
             data.get('status', 'pending'),
             data.get('specialInstructions', '')
         ))
-        result = cursor.fetchone()
-        order_id = result['id'] if result else None
         db.commit()
+        order_id = cursor.lastrowid
         db.close()
         return order_id
     
@@ -201,7 +187,7 @@ class Order:
     def find_by_user(user_id):
         db = Database.get_db()
         cursor = db.cursor()
-        cursor.execute('SELECT * FROM orders WHERE userId = %s ORDER BY createdAt DESC', (user_id,))
+        cursor.execute('SELECT * FROM orders WHERE userId = ? ORDER BY createdAt DESC', (user_id,))
         orders = cursor.fetchall()
         db.close()
         return [Database.row_to_dict(o) for o in orders]
@@ -210,7 +196,7 @@ class Order:
     def find_by_id(order_id):
         db = Database.get_db()
         cursor = db.cursor()
-        cursor.execute('SELECT * FROM orders WHERE id = %s', (order_id,))
+        cursor.execute('SELECT * FROM orders WHERE id = ?', (order_id,))
         order = cursor.fetchone()
         db.close()
         return Database.row_to_dict(order)
@@ -258,7 +244,7 @@ class Settings:
             }
             cursor.execute('''
                 INSERT INTO settings (id, deliveryCharges, parcelCharge, offers, contactInfo, trustBadges)
-                VALUES (1, %s, %s, %s, %s, %s)
+                VALUES (1, ?, ?, ?, ?, ?)
             ''', (
                 default_settings['deliveryCharges'],
                 default_settings['parcelCharge'],

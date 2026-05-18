@@ -1,5 +1,4 @@
-from flask import Flask, render_template, jsonify, request, send_from_directory, redirect
-from werkzeug.middleware.proxy_fix import ProxyFix
+from flask import Flask, render_template, jsonify, request, send_from_directory
 from config import Config
 from extensions import jwt, bcrypt, cors, init_db
 import os
@@ -8,17 +7,16 @@ import os
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# Trust proxy headers for HTTPS (Required for Render)
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-
 # Initialize extensions with app
 cors.init_app(app)
 jwt.init_app(app)
 bcrypt.init_app(app)
 
-# Initialize PostgreSQL Database
-db_url = app.config['DATABASE_URL']
-db_path = init_db(db_url)
+# Initialize Database (auto-detects PostgreSQL or SQLite)
+init_db(
+    database_url=app.config.get('DATABASE_URL'),
+    database_path=app.config['DATABASE_PATH']
+)
 
 # Import routes
 from routes import auth, products, orders, catering, events, subscriptions, franchise, admin, payment, settings, loyalty, coupons, service_requests
@@ -37,13 +35,6 @@ app.register_blueprint(settings.bp, url_prefix='/api/settings')
 app.register_blueprint(loyalty.bp, url_prefix='/api/loyalty')
 app.register_blueprint(coupons.bp, url_prefix='/api/coupons')
 app.register_blueprint(service_requests.bp, url_prefix='/api/requests')
-
-# HTTPS redirect middleware for production
-@app.before_request
-def before_request():
-    if not request.is_secure and os.getenv('RENDER'):
-        url = request.url.replace('http://', 'https://', 1)
-        return redirect(url, code=301)
 
 #  ==================== WEB ROUTES ====================
 
@@ -143,11 +134,12 @@ def admin_live_bookings():
 
 @app.route('/api/health')
 def health():
+    from extensions import use_postgres, db_url, db_path
     return jsonify({
         'status': 'OK',
         'message': 'SWAAD SADAN API is running',
-        'database': 'SQLite (Local)',
-        'db_file': app.config['DATABASE_PATH']
+        'database': 'PostgreSQL' if use_postgres else 'SQLite',
+        'db_info': db_url if use_postgres else db_path
     })
 
 # Error handlers

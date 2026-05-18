@@ -23,21 +23,21 @@ def get_stats():
         cursor = db.cursor()
         
         # Get statistics
-        cursor.execute('SELECT COUNT(*) as count FROM orders')
-        total_orders = cursor.fetchone()['count']
+        cursor.execute('SELECT COUNT(*) FROM orders')
+        total_orders = cursor.fetchone()[0]
         
-        cursor.execute("SELECT COUNT(*) as count FROM users WHERE role = 'customer'")
-        total_users = cursor.fetchone()['count']
+        cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'customer'")
+        total_users = cursor.fetchone()[0]
         
-        cursor.execute('SELECT COUNT(*) as count FROM products')
-        total_products = cursor.fetchone()['count']
+        cursor.execute('SELECT COUNT(*) FROM products')
+        total_products = cursor.fetchone()[0]
         
-        # Calculate revenue - PostgreSQL JSONB syntax
-        cursor.execute("SELECT pricing FROM orders WHERE payment->>'status' = 'paid'")
+        # Calculate revenue
+        cursor.execute("SELECT pricing FROM orders WHERE json_extract(payment, '$.status') = 'completed'")
         completed_orders = cursor.fetchall()
         total_revenue = 0
         for order in completed_orders:
-            pricing = json.loads(order['pricing'])
+            pricing = json.loads(order[0])
             total_revenue += pricing.get('total', 0)
         
         db.close()
