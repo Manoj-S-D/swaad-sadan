@@ -77,8 +77,8 @@
                 <div class="form-group">
                     <label>Payment Method</label>
                     <select class="form-control" id="paymentMethod">
-                        <option value="COD">Cash on Delivery (COD)</option>
-                        <option value="ONLINE">Pay Online (Razorpay)</option>
+                        <option value="cod">Cash on Delivery (COD)</option>
+                        <option value="online">Pay Online (Razorpay)</option>
                     </select>
                 </div>
                 
@@ -432,7 +432,7 @@ async function proceedToCheckout() {
     };
     
     // Handle payment method
-    if (paymentMethod === 'ONLINE') {
+    if (paymentMethod === 'online') {
         // Initiate Razorpay payment
         const paymentSuccess = await initiatePayment(totalAmount, {
             description: 'Food Order Payment',
@@ -443,6 +443,7 @@ async function proceedToCheckout() {
                 orderData.razorpay_payment_id = paymentResponse.razorpay_payment_id;
                 orderData.razorpay_order_id = paymentResponse.razorpay_order_id;
                 orderData.razorpay_signature = paymentResponse.razorpay_signature;
+                console.log('Creating order with payment details:', orderData);
                 await createOrder(orderData);
             },
             onFailure: () => {
@@ -455,6 +456,7 @@ async function proceedToCheckout() {
     } else {
         // COD - create order directly
         orderData.paymentStatus = 'pending';
+        console.log('Creating COD order:', orderData);
         await createOrder(orderData);
     }
 }

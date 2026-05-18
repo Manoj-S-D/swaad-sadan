@@ -84,16 +84,25 @@ def create_order():
         total = total_before_discount - discount
         
         # Prepare payment details with transaction data for refunds
+        # Normalize payment method to lowercase
+        payment_method = data.get('paymentMethod', 'COD').lower()
+        payment_status = data.get('paymentStatus', 'pending')
+        
+        # Only mark as paid if we have transaction ID (proof of payment)
+        razorpay_payment_id = data.get('razorpay_payment_id', '')
+        if payment_method == 'online' and not razorpay_payment_id:
+            payment_status = 'pending'
+        
         payment_details = {
-            'method': data.get('paymentMethod', 'COD'),
-            'status': data.get('paymentStatus', 'pending'),
+            'method': payment_method,
+            'status': payment_status,
             'paymentId': data.get('paymentId', ''),
-            'transactionId': data.get('razorpay_payment_id', ''),
+            'transactionId': razorpay_payment_id,
             'orderId': data.get('razorpay_order_id', ''),
             'signature': data.get('razorpay_signature', ''),
             'amount': total,
             'currency': 'INR',
-            'timestamp': datetime.now().isoformat() if data.get('paymentStatus') == 'paid' else None
+            'timestamp': datetime.now().isoformat() if razorpay_payment_id else None
         }
         
         order_data = {
@@ -118,9 +127,10 @@ def create_order():
         order_id = Order.create(order_data)
         
         # Record coupon usage if coupon was used
-        if data.get('couponCode') and coupon_discount > 0:
+        if data.get('couponCode') and coupon_discount > 0 and coupon:
             from routes.coupons import record_coupon_usage
             record_coupon_usage(coupon['id'], user_id, order_id, coupon_discount)
+            print(f"📊 Coupon {coupon['code']} used. Incrementing usage count.")
         
         order = Order.find_by_id(order_id)
         
@@ -285,9 +295,11 @@ def add_order_comment(order_id):
             db.close()
             return jsonify({'success': False, 'message': 'Order not found'}), 404
         
-        if order['userId'] != user_id:
+        # Check if userId field exists, handle both 'userId' and 'user' column names
+        order_user_id = order.get('userId') or order.get('user')
+        if not order_user_id or order_user_id != user_id:
             db.close()
-            return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+            return jsonify({'success': False, 'message': 'Unauthorized - This order does not belong to you'}), 403
         
         # Check if comment already exists
         cursor.execute('SELECT id FROM order_comments WHERE orderId = ? AND userId = ?', (order_id, user_id))

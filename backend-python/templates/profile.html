@@ -171,21 +171,35 @@
 
 {% block scripts %}
 <script>
-let userAddresses = [];
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Profile page loaded');
+    loadUserProfile();
+});
 
 async function loadUserProfile() {
     const token = localStorage.getItem('token');
     const user = JSON.parse(localStorage.getItem('user'));
     
+    console.log('Loading user profile:', user);
+    
     if (!user || !token) {
-        window.location.href = '/login';
+        console.error('No user or token found');
+        showAlert('Please login first', 'error');
+        setTimeout(() => window.location.href = '/login', 1500);
         return;
     }
     
-    // Load user details
-    document.getElementById('profileName').value = user.name;
-    document.getElementById('profileEmail').value = user.email;
-    document.getElementById('profilePhone').value = user.phone;
+    // Load user details from localStorage
+    document.getElementById('profileName').value = user.name || '';
+    document.getElementById('profileEmail').value = user.email || '';
+    document.getElementById('profilePhone').value = user.phone || '';
+    
+    console.log('Profile form populated:', {
+        name: user.name,
+        email: user.email,
+        phone: user.phone
+    });
     
     // Load loyalty points
     try {
@@ -282,9 +296,16 @@ async function updateProfile(e) {
     const token = localStorage.getItem('token');
     
     const profileData = {
-        name: document.getElementById('profileName').value,
-        phone: document.getElementById('profilePhone').value
+        name: document.getElementById('profileName').value.trim(),
+        phone: document.getElementById('profilePhone').value.trim()
     };
+    
+    console.log('Updating profile with:', profileData);
+    
+    if (!profileData.name || !profileData.phone) {
+        showAlert('Please fill in all required fields', 'error');
+        return;
+    }
     
     try {
         const response = await fetch('/api/auth/update-profile', {
@@ -297,6 +318,7 @@ async function updateProfile(e) {
         });
         
         const data = await response.json();
+        console.log('Update response:', data);
         
         if (data.success) {
             // Update local storage
@@ -305,11 +327,16 @@ async function updateProfile(e) {
             user.phone = profileData.phone;
             localStorage.setItem('user', JSON.stringify(user));
             
+            console.log('LocalStorage updated:', user);
             showAlert('Profile updated successfully!', 'success');
+            
+            // Reload page to reflect changes in navigation
+            setTimeout(() => location.reload(), 1000);
         } else {
-            showAlert(data.message, 'error');
+            showAlert(data.message || 'Failed to update profile', 'error');
         }
     } catch (error) {
+        console.error('Profile update error:', error);
         showAlert('Failed to update profile', 'error');
     }
 }
@@ -474,6 +501,5 @@ async function setDefaultAddress(addressId) {
     }
 }
 
-loadUserProfile();
 </script>
 {% endblock %}
