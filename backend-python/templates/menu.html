@@ -46,19 +46,22 @@ async function loadProducts(filters) {
     container.innerHTML = '<p style="text-align: center; padding: 2rem;">Loading...</p>';
     
     try {
-        // Simple relative URL - same as admin
+        // FORCE HTTPS with absolute URL
         const params = new URLSearchParams(filters);
-        const url = '/api/products?' + params.toString();
+        const url = 'https://swaad-sadan.onrender.com/api/products?' + params.toString();
         console.log('=== FETCH ATTEMPT ===');
-        console.log('URL:', url);
-        console.log('Full URL:', window.location.origin + url);
+        console.log('Absolute URL:', url);
         console.log('Filters:', filters);
         
-        const response = await fetch(url);
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
         console.log('=== RESPONSE RECEIVED ===');
         console.log('Status:', response.status);
         console.log('OK:', response.ok);
-        console.log('Headers:', response.headers);
         
         if (!response.ok) {
             throw new Error('Server returned ' + response.status);
@@ -98,9 +101,12 @@ async function loadProducts(filters) {
         console.error('Error stack:', error.stack);
         console.error('Full error object:', error);
         container.innerHTML = `
-            <div style="text-align: center; padding: 2rem;">
-                <p style="color: red;">Error: ${error.message}</p>
-                <p style="color: #999; font-size: 0.9rem;">Type: ${error.constructor.name}</p>
+            <div style="text-align: center; padding: 2rem; max-width: 600px; margin: 0 auto;">
+                <p style="color: red; font-size: 1.1rem; margin-bottom: 1rem;">Error: ${error.message}</p>
+                <p style="color: #666; font-size: 0.9rem; margin-bottom: 0.5rem;">Type: ${error.constructor.name}</p>
+                <p style="color: #999; font-size: 0.85rem; word-break: break-all; margin-bottom: 1rem;">
+                    Check F12 Console for detailed logs
+                </p>
                 <button class="btn btn-primary" onclick="loadProducts()">Retry</button>
             </div>
         `;
