@@ -1,4 +1,5 @@
-from flask import Flask, render_template, jsonify, request, send_from_directory
+from flask import Flask, render_template, jsonify, request, send_from_directory, redirect
+from werkzeug.middleware.proxy_fix import ProxyFix
 from config import Config
 from extensions import jwt, bcrypt, cors, init_db
 import os
@@ -6,6 +7,9 @@ import os
 # Initialize Flask app
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# Trust proxy headers for HTTPS (Required for Render)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Initialize extensions with app
 cors.init_app(app)
@@ -33,6 +37,13 @@ app.register_blueprint(settings.bp, url_prefix='/api/settings')
 app.register_blueprint(loyalty.bp, url_prefix='/api/loyalty')
 app.register_blueprint(coupons.bp, url_prefix='/api/coupons')
 app.register_blueprint(service_requests.bp, url_prefix='/api/requests')
+
+# HTTPS redirect middleware for production
+@app.before_request
+def before_request():
+    if not request.is_secure and os.getenv('RENDER'):
+        url = request.url.replace('http://', 'https://', 1)
+        return redirect(url, code=301)
 
 #  ==================== WEB ROUTES ====================
 
