@@ -407,15 +407,20 @@ def reply_to_comment(comment_id):
         db = Database.get_db()
         cursor = db.cursor()
         
+        # First check if comment exists
+        cursor.execute('SELECT id FROM order_comments WHERE id = ?', (comment_id,))
+        comment = cursor.fetchone()
+        
+        if not comment:
+            db.close()
+            return jsonify({'success': False, 'message': 'Comment not found'}), 404
+        
+        # Update comment with admin reply
         cursor.execute('''
             UPDATE order_comments 
             SET adminReply = ?, repliedAt = CURRENT_TIMESTAMP, updatedAt = CURRENT_TIMESTAMP
             WHERE id = ?
         ''', (admin_reply, comment_id))
-        
-        if cursor.rowcount == 0:
-            db.close()
-            return jsonify({'success': False, 'message': 'Comment not found'}), 404
         
         db.commit()
         db.close()
