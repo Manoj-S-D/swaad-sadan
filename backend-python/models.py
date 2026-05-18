@@ -94,7 +94,8 @@ class Product:
         if include_unavailable:
             query = 'SELECT * FROM products WHERE 1=1'
         else:
-            query = 'SELECT * FROM products WHERE isAvailable = 1'
+            # Use TRUE for PostgreSQL compatibility (converts to 1 for SQLite)
+            query = 'SELECT * FROM products WHERE isAvailable = TRUE'
         
         params = []
         
@@ -103,11 +104,9 @@ class Product:
                 query += ' AND category = ?'
                 params.append(filters['category'])
             if 'isVeg' in filters:
-                query += ' AND isVeg = ?'
-                params.append(1 if filters['isVeg'] else 0)
+                query += ' AND isVeg = TRUE' if filters['isVeg'] else ' AND isVeg = FALSE'
             if 'isHealthBox' in filters:
-                query += ' AND isHealthBox = ?'
-                params.append(1 if filters['isHealthBox'] else 0)
+                query += ' AND isHealthBox = TRUE' if filters['isHealthBox'] else ' AND isHealthBox = FALSE'
         
         cursor.execute(query, params)
         products = cursor.fetchall()
