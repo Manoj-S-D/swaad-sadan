@@ -37,7 +37,8 @@ class User:
             bool(data.get('isActive', True)),
             json.dumps(data.get('addresses', []))
         ))
-        user_id = cursor.fetchone()[0]
+        result = cursor.fetchone()
+        user_id = result['id'] if result else None
         db.commit()
         db.close()
         return user_id
@@ -82,7 +83,8 @@ class Product:
             bool(data.get('isAvailable', True)),
             json.dumps(data.get('nutrition', {}))
         ))
-        product_id = cursor.fetchone()[0]
+        result = cursor.fetchone()
+        product_id = result['id'] if result else None
         db.commit()
         db.close()
         return product_id
@@ -170,7 +172,8 @@ class Order:
         
         # Generate order number
         cursor.execute('SELECT COUNT(*) as count FROM orders')
-        count = cursor.fetchone()[0]
+        result = cursor.fetchone()
+        count = result['count'] if result else 0
         order_number = f"SS{int(time.time())}{count + 1}"
         
         cursor.execute('''
@@ -188,7 +191,8 @@ class Order:
             data.get('status', 'pending'),
             data.get('specialInstructions', '')
         ))
-        order_id = cursor.fetchone()[0]
+        result = cursor.fetchone()
+        order_id = result['id'] if result else None
         db.commit()
         db.close()
         return order_id
