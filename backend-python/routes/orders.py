@@ -196,7 +196,10 @@ def update_order_status(order_id):
             from routes.loyalty import award_points
             import json
             
-            pricing = json.loads(order['pricing'])
+            pricing = order['pricing']
+            # Parse JSON only if it's a string (SQLite), PostgreSQL JSONB returns already parsed
+            if isinstance(pricing, str):
+                pricing = json.loads(pricing)
             points_earned = award_points(order['userId'], pricing['total'])
         
         return jsonify({

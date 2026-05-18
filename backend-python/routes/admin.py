@@ -37,7 +37,10 @@ def get_stats():
         completed_orders = cursor.fetchall()
         total_revenue = 0
         for order in completed_orders:
-            pricing = json.loads(order[0])
+            pricing = order[0]
+            # Parse JSON only if it's a string (SQLite), PostgreSQL JSONB returns already parsed
+            if isinstance(pricing, str):
+                pricing = json.loads(pricing)
             total_revenue += pricing.get('total', 0)
         
         db.close()

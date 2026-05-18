@@ -16,9 +16,10 @@ def get_plans():
         cursor.execute('SELECT * FROM subscription_plans WHERE isActive = TRUE ORDER BY price ASC')
         plans = [dict(row) for row in cursor.fetchall()]
         
-        # Parse JSON fields
+        # Parse JSON fields (only if they're strings, PostgreSQL JSONB returns already parsed)
         for plan in plans:
-            plan['features'] = json.loads(plan.get('features', '[]'))
+            if isinstance(plan.get('features'), str):
+                plan['features'] = json.loads(plan.get('features', '[]'))
         
         conn.close()
         return jsonify({'success': True, 'plans': plans})
@@ -44,9 +45,10 @@ def get_all_plans():
         cursor.execute('SELECT * FROM subscription_plans ORDER BY createdAt DESC')
         plans = [dict(row) for row in cursor.fetchall()]
         
-        # Parse JSON fields
+        # Parse JSON fields (only if they're strings, PostgreSQL JSONB returns already parsed)
         for plan in plans:
-            plan['features'] = json.loads(plan.get('features', '[]'))
+            if isinstance(plan.get('features'), str):
+                plan['features'] = json.loads(plan.get('features', '[]'))
         
         conn.close()
         return jsonify({'success': True, 'plans': plans})

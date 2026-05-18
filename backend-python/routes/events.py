@@ -15,9 +15,10 @@ def get_packages():
         cursor.execute('SELECT * FROM event_packages WHERE isActive = TRUE ORDER BY price ASC')
         packages = [dict(row) for row in cursor.fetchall()]
         
-        # Parse JSON fields
+        # Parse JSON fields (only if they're strings, PostgreSQL JSONB returns already parsed)
         for package in packages:
-            package['inclusions'] = json.loads(package.get('inclusions', '[]'))
+            if isinstance(package.get('inclusions'), str):
+                package['inclusions'] = json.loads(package.get('inclusions', '[]'))
         
         conn.close()
         return jsonify({'success': True, 'packages': packages})
@@ -43,9 +44,10 @@ def get_all_packages():
         cursor.execute('SELECT * FROM event_packages ORDER BY createdAt DESC')
         packages = [dict(row) for row in cursor.fetchall()]
         
-        # Parse JSON fields
+        # Parse JSON fields (only if they're strings, PostgreSQL JSONB returns already parsed)
         for package in packages:
-            package['inclusions'] = json.loads(package.get('inclusions', '[]'))
+            if isinstance(package.get('inclusions'), str):
+                package['inclusions'] = json.loads(package.get('inclusions', '[]'))
         
         conn.close()
         return jsonify({'success': True, 'packages': packages})

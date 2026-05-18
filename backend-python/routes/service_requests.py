@@ -78,9 +78,10 @@ def get_my_requests():
         
         requests = [dict(row) for row in cursor.fetchall()]
         
-        # Parse JSON fields
+        # Parse JSON fields (only if they're strings, PostgreSQL JSONB returns already parsed)
         for req in requests:
-            req['requestData'] = json.loads(req.get('requestData', '{}'))
+            if isinstance(req.get('requestData'), str):
+                req['requestData'] = json.loads(req.get('requestData', '{}'))
         
         conn.close()
         return jsonify({'success': True, 'requests': requests})
@@ -129,9 +130,10 @@ def get_all_requests():
         cursor.execute(query, params)
         requests = [dict(row) for row in cursor.fetchall()]
         
-        # Parse JSON fields
+        # Parse JSON fields (only if they're strings, PostgreSQL JSONB returns already parsed)
         for req in requests:
-            req['requestData'] = json.loads(req.get('requestData', '{}'))
+            if isinstance(req.get('requestData'), str):
+                req['requestData'] = json.loads(req.get('requestData', '{}'))
         
         conn.close()
         return jsonify({'success': True, 'requests': requests})
@@ -173,7 +175,8 @@ def get_request(request_id):
             return jsonify({'success': False, 'message': 'Unauthorized'}), 403
         
         request_data = dict(req)
-        request_data['requestData'] = json.loads(request_data.get('requestData', '{}'))
+        if isinstance(request_data.get('requestData'), str):
+            request_data['requestData'] = json.loads(request_data.get('requestData', '{}'))
         
         # Get messages
         cursor.execute('''
@@ -312,9 +315,10 @@ def get_live_upcoming():
         
         upcoming_requests = [dict(row) for row in cursor.fetchall()]
         
-        # Parse JSON fields
+        # Parse JSON fields (only if they're strings, PostgreSQL JSONB returns already parsed)
         for req in live_requests + upcoming_requests:
-            req['requestData'] = json.loads(req.get('requestData', '{}'))
+            if isinstance(req.get('requestData'), str):
+                req['requestData'] = json.loads(req.get('requestData', '{}'))
         
         conn.close()
         return jsonify({

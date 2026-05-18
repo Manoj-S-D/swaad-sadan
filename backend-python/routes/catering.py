@@ -15,10 +15,12 @@ def get_catering():
         cursor.execute('SELECT * FROM catering_packages WHERE isActive = TRUE ORDER BY pricePerPerson ASC')
         packages = [dict(row) for row in cursor.fetchall()]
         
-        # Parse JSON fields
+        # Parse JSON fields (only if they're strings, PostgreSQL JSONB returns already parsed)
         for package in packages:
-            package['menuItems'] = json.loads(package.get('menuItems', '[]'))
-            package['features'] = json.loads(package.get('features', '[]'))
+            if isinstance(package.get('menuItems'), str):
+                package['menuItems'] = json.loads(package.get('menuItems', '[]'))
+            if isinstance(package.get('features'), str):
+                package['features'] = json.loads(package.get('features', '[]'))
         
         conn.close()
         return jsonify({'success': True, 'packages': packages})
@@ -44,10 +46,12 @@ def get_all_packages():
         cursor.execute('SELECT * FROM catering_packages ORDER BY createdAt DESC')
         packages = [dict(row) for row in cursor.fetchall()]
         
-        # Parse JSON fields
+        # Parse JSON fields (only if they're strings, PostgreSQL JSONB returns already parsed)
         for package in packages:
-            package['menuItems'] = json.loads(package.get('menuItems', '[]'))
-            package['features'] = json.loads(package.get('features', '[]'))
+            if isinstance(package.get('menuItems'), str):
+                package['menuItems'] = json.loads(package.get('menuItems', '[]'))
+            if isinstance(package.get('features'), str):
+                package['features'] = json.loads(package.get('features', '[]'))
         
         conn.close()
         return jsonify({'success': True, 'packages': packages})
