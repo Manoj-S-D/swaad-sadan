@@ -368,10 +368,13 @@ async function proceedToCheckout() {
         // Initiate Razorpay payment
         const paymentSuccess = await initiatePayment(totalAmount, {
             description: 'Food Order Payment',
-            onSuccess: async (paymentId) => {
-                // Payment verified, now create the order
+            onSuccess: async (paymentId, paymentResponse) => {
+                // Payment verified, now create the order with full payment details
                 orderData.paymentId = paymentId;
                 orderData.paymentStatus = 'paid';
+                orderData.razorpay_payment_id = paymentResponse.razorpay_payment_id;
+                orderData.razorpay_order_id = paymentResponse.razorpay_order_id;
+                orderData.razorpay_signature = paymentResponse.razorpay_signature;
                 await createOrder(orderData);
             },
             onFailure: () => {

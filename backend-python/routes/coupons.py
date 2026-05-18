@@ -71,12 +71,13 @@ def validate_coupon():
             db.close()
             return jsonify({'success': False, 'message': 'Coupon usage limit reached'}), 400
         
-        # Check minimum order value
-        if order_total < coupon['minOrderValue']:
+        # Check minimum order value (handle NULL/None values)
+        min_order_value = coupon['minOrderValue'] or 0
+        if order_total < min_order_value:
             db.close()
             return jsonify({
                 'success': False, 
-                'message': f'Minimum order value ₹{coupon["minOrderValue"]} required'
+                'message': f'Minimum order value ₹{min_order_value} required'
             }), 400
         
         # Check if user already used this coupon

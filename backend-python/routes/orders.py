@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import Order, Settings, Database, User
+from datetime import datetime
 
 bp = Blueprint('orders', __name__)
 
@@ -82,6 +83,19 @@ def create_order():
         discount = coupon_discount + points_discount
         total = total_before_discount - discount
         
+        # Prepare payment details with transaction data for refunds
+        payment_details = {
+            'method': data.get('paymentMethod', 'COD'),
+            'status': data.get('paymentStatus', 'pending'),
+            'paymentId': data.get('paymentId', ''),
+            'transactionId': data.get('razorpay_payment_id', ''),
+            'orderId': data.get('razorpay_order_id', ''),
+            'signature': data.get('razorpay_signature', ''),
+            'amount': total,
+            'currency': 'INR',
+            'timestamp': datetime.now().isoformat() if data.get('paymentStatus') == 'paid' else None
+        }
+        
         order_data = {
             'user': user_id,
             'items': data['items'],
@@ -96,11 +110,7 @@ def create_order():
                 'discount': discount,
                 'total': total
             },
-            'payment': {
-                'method': data.get('paymentMethod', 'COD'),
-                'status': data.get('paymentStatus', 'pending'),
-                'paymentId': data.get('paymentId', '')
-            },
+            'payment': payment_details,
             'status': 'pending',
             'specialInstructions': data.get('specialInstructions', '')
         }
@@ -186,12 +196,49 @@ def update_order_status(order_id):
             db.close()
             return jsonify({'success': False, 'message': 'Order not found'}), 404
         
+        # Parse payment info
+        payment_info = order['payment']
+        if isinstance(payment_info, str):
+            import json
+            payment_info = json.loads(payment_info)
+        
+        # Process refund if order is being cancelled and payment was made online
+        refund_id = None
+        if new_status == 'cancelled' and payment_info.get('status') == 'paid' and payment_info.get('transactionId'):
+            try:
+                # Import razorpay client
+                from routes.payment import get_razorpay_client
+                client = get_razorpay_client()
+                
+                if client:
+                    # Process full refund
+                    refund = client.payment.refund(payment_info['transactionId'], {
+                        'speed': 'normal'
+                    })
+                    refund_id = refund['id']
+                    
+                    # Update payment status in order
+                    payment_info['refundId'] = refund_id
+                    payment_info['refundStatus'] = refund['status']
+                    payment_info['refundedAt'] = datetime.now().isoformat()
+                    
+                    # Update payment info in database
+                    import json
+                    cursor.execute(
+                        'UPDATE orders SET payment = ? WHERE id = ?',
+                        (json.dumps(payment_info), order_id)
+                    )
+            except Exception as refund_error:
+                # Log refund error but don't fail the status update
+                print(f"Refund error: {str(refund_error)}")
+        
         # Update status in database
         cursor.execute('UPDATE orders SET status = ? WHERE id = ?', (new_status, order_id))
         db.commit()
         db.close()
         
         # Award loyalty points if order is completed
+        points_earned = 0
         if new_status == 'completed':
             from routes.loyalty import award_points
             import json
@@ -202,11 +249,20 @@ def update_order_status(order_id):
                 pricing = json.loads(pricing)
             points_earned = award_points(order['userId'], pricing['total'])
         
-        return jsonify({
+        response_data = {
             'success': True,
             'message': 'Order status updated successfully',
-            'pointsEarned': points_earned if new_status == 'completed' else 0
-        })
+            'pointsEarned': points_earned
+        }
+        
+        if refund_id:
+            response_data['refund'] = {
+                'processed': True,
+                'refundId': refund_id,
+                'message': 'Refund initiated successfully. Amount will be credited to customer account in 5-7 business days.'
+            }
+        
+        return jsonify(response_data)
         
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500

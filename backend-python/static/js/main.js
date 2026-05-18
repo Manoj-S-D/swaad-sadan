@@ -393,9 +393,9 @@ async function verifyPayment(response, orderDetails = {}) {
         if (data.success) {
             showAlert('Payment verified successfully!', 'success');
             
-            // Call success callback if provided
+            // Call success callback if provided, pass both paymentId and full payment response
             if (orderDetails.onSuccess && typeof orderDetails.onSuccess === 'function') {
-                orderDetails.onSuccess(data.paymentId);
+                orderDetails.onSuccess(data.paymentId, response);
             } else {
                 // Default behavior - redirect to orders page
                 setTimeout(() => window.location.href = '/my-orders', 2000);

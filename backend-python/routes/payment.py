@@ -1,9 +1,16 @@
 from flask import Blueprint, jsonify, request, current_app
+from flask_jwt_extended import jwt_required, get_jwt_identity
 import razorpay
 import hmac
 import hashlib
+from models import User
 
 bp = Blueprint('payment', __name__)
+
+def is_admin(user_id):
+    """Check if user is admin"""
+    user = User.find_by_id(user_id)
+    return user and user.get('role') == 'admin'
 
 def get_razorpay_client():
     """Get Razorpay client instance"""
@@ -115,4 +122,58 @@ def verify_payment():
         return jsonify({
             'success': False,
             'message': f'Payment verification error: {str(e)}'
+        }), 500
+
+@bp.route('/refund', methods=['POST'])
+@jwt_required()
+def process_refund():
+    """Process refund for a cancelled order (Admin only)"""
+    try:
+        user_id = get_jwt_identity()
+        if not is_admin(user_id):
+            return jsonify({'success': False, 'message': 'Admin privileges required'}), 403
+        
+        client = get_razorpay_client()
+        
+        if not client:
+            return jsonify({
+                'success': False,
+                'message': 'Razorpay not configured'
+            }), 400
+        
+        data = request.get_json()
+        payment_id = data.get('paymentId')
+        amount = data.get('amount')  # Amount in rupees
+        reason = data.get('reason', 'Order cancelled by admin')
+        
+        if not payment_id:
+            return jsonify({'success': False, 'message': 'Payment ID required'}), 400
+        
+        # Create refund
+        refund_data = {
+            'speed': 'normal'
+        }
+        
+        # If partial refund, specify amount in paise
+        if amount:
+            refund_data['amount'] = int(amount * 100)
+        
+        # Process refund through Razorpay
+        refund = client.payment.refund(payment_id, refund_data)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Refund processed successfully',
+            'refund': {
+                'id': refund['id'],
+                'amount': refund['amount'] / 100,  # Convert back to rupees
+                'status': refund['status'],
+                'created_at': refund['created_at']
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Refund failed: {str(e)}'
         }), 500
