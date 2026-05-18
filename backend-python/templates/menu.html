@@ -42,12 +42,19 @@
         const container = document.getElementById('products-container');
         
         try {
+            // Prevent Event objects from being passed as filters
+            if (filters && filters.constructor && filters.constructor.name === 'Event') {
+                filters = {};
+            }
+            
             // Show loading message
             container.innerHTML = '<p style="text-align: center; padding: 3rem;">Loading menu...</p>';
             
-            // Build URL ensuring it uses current protocol (HTTPS on Render)
+            // FORCE HTTPS - use absolute URL with explicit protocol
             const params = new URLSearchParams(filters);
-            const url = `${window.location.origin}/api/products?${params}`;
+            const baseUrl = window.location.hostname;
+            const url = `https://${baseUrl}/api/products?${params}`;
+            console.log('Fetching from:', url);
             const response = await fetch(url);
             
             if (!response.ok) {
