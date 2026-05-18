@@ -79,13 +79,64 @@ class UnifiedCursor:
         """Convert PostgreSQL dict/booleans to SQLite-compatible format"""
         if isinstance(row, dict):
             # Convert dict to support both dict['key'] and row[0] access
+            # Also fix PostgreSQL lowercase column names to match SQLite case
             converted = {}
+            
+            # Map PostgreSQL lowercase to original SQLite case
+            case_map = {
+                'isactive': 'isActive',
+                'isavailable': 'isAvailable',
+                'isveg': 'isVeg',
+                'ishealthbox': 'isHealthBox',
+                'createdat': 'createdAt',
+                'updatedat': 'updatedAt',
+                'userid': 'userId',
+                'ordertype': 'orderType',
+                'ordernumber': 'orderNumber',
+                'deliveryaddress': 'deliveryAddress',
+                'specialinstructions': 'specialInstructions',
+                'mealsperdday': 'mealsPerDay',
+                'usagelimit': 'usageLimit',
+                'usedcount': 'usedCount',
+                'mindordervalue': 'minOrderValue',
+                'maxdiscount': 'maxDiscount',
+                'expirydate': 'expiryDate',
+                'priceperperson': 'pricePerPerson',
+                'menuitems': 'menuItems',
+                'minguests': 'minGuests',
+                'maxguests': 'maxGuests',
+                'eventtype': 'eventType',
+                'requestnumber': 'requestNumber',
+                'servicetype': 'serviceType',
+                'packageid': 'packageId',
+                'requestdata': 'requestData',
+                'scheduleddate': 'scheduledDate',
+                'scheduledtime': 'scheduledTime',
+                'totalamount': 'totalAmount',
+                'requestid': 'requestId',
+                'senderid': 'senderId',
+                'senderrole': 'senderRole',
+                'couponid': 'couponId',
+                'orderid': 'orderId',
+                'discountamount': 'discountAmount',
+                'usedat': 'usedAt',
+                'totalearned': 'totalEarned',
+                'totalredeemed': 'totalRedeemed',
+                'contactinfo': 'contactInfo',
+                'deliverycharges': 'deliveryCharges',
+                'parcelcharge': 'parcelCharge',
+                'trustbadges': 'trustBadges'
+            }
+            
             for key, value in row.items():
+                # Convert key case
+                correct_case_key = case_map.get(key.lower(), key)
+                
                 # Convert boolean to int
                 if isinstance(value, bool):
-                    converted[key] = 1 if value else 0
+                    converted[correct_case_key] = 1 if value else 0
                 else:
-                    converted[key] = value
+                    converted[correct_case_key] = value
             
             # Create a hybrid object that supports both dict and tuple access
             class DictRow(dict):
