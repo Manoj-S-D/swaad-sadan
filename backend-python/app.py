@@ -12,8 +12,9 @@ cors.init_app(app)
 jwt.init_app(app)
 bcrypt.init_app(app)
 
-# Initialize SQLite Database
-db_path = init_db(app.config['DATABASE_PATH'])
+# Initialize PostgreSQL Database
+db_url = app.config['DATABASE_URL']
+db_path = init_db(db_url)
 
 # Import routes
 from routes import auth, products, orders, catering, events, subscriptions, franchise, admin, payment, settings, loyalty, coupons, service_requests
