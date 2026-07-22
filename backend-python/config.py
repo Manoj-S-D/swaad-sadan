@@ -8,6 +8,9 @@ class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
     FLASK_ENV = os.getenv('FLASK_ENV', 'development')
     
+    # Force HTTPS in production (for Render, Heroku, etc.)
+    PREFERRED_URL_SCHEME = 'https' if os.getenv('DATABASE_URL') else 'http'
+    
     # Database - Auto-detect: PostgreSQL (production) or SQLite (local)
     DATABASE_URL = os.getenv('DATABASE_URL')  # PostgreSQL connection string from Render
     DATABASE_PATH = os.getenv('DATABASE_PATH', 'swaad_sadan.db')  # SQLite fallback
