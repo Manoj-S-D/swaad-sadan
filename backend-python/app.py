@@ -1,4 +1,5 @@
 from flask import Flask, render_template, jsonify, request, send_from_directory
+from werkzeug.middleware.proxy_fix import ProxyFix
 from config import Config
 from extensions import jwt, bcrypt, cors, init_db
 import os
@@ -6,6 +7,9 @@ import os
 # Initialize Flask app
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# Trust proxy headers for HTTPS (required for Render, Heroku, etc.)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Initialize extensions with app
 cors.init_app(app)
